@@ -11,6 +11,8 @@
 
 - https://github.com/cathrynlavery/diagram-design
 
+- https://github.com/Ted0321/kotetsu-work-ai-skills/tree/main  
+  仕事が前に進むAIスキルを配るリポジトリ  
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks
     ```
@@ -25,11 +27,11 @@
     
 ## フレームワーク
 
-- https://github.com/bmad-code-org/BMAD-METHOD
-  BMAD(Breakthrough Method for Agile AI-Driven Development )
+- https://github.com/bmad-code-org/BMAD-METHOD  
+  BMAD(Breakthrough Method for Agile AI-Driven Development )  
 
-- https://github.com/obra/superpowers
-  superpowers
+- https://github.com/obra/superpowers  
+  superpowers  
 
 
 ## ツール
