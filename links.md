@@ -9,6 +9,8 @@
   
 - https://github.com/mattpocock/skills
 
+- https://github.com/cathrynlavery/diagram-design
+
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks
     ```
@@ -23,7 +25,18 @@
     
 ## フレームワーク
 
+- https://github.com/bmad-code-org/BMAD-METHOD
+  BMAD(Breakthrough Method for Agile AI-Driven Development )
+
+- https://github.com/obra/superpowers
+  superpowers
+
 
 ## ツール
 
 - https://github.com/microsoft/skill-recorder
+  人間の画面操作を録画し、その手順をAIエージェント用のSkillへ変換するツール  
+
+## VS Code拡張機能
+- https://github.com/microsoft/AI-Engineering-Coach
+  ローカルセッション履歴を解析し、AIを使った開発方法を採点・改善するVS Code拡張機能
