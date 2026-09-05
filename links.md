@@ -11,7 +11,7 @@
 
 - https://github.com/cathrynlavery/diagram-design
 
-- https://github.com/Ted0321/kotetsu-work-ai-skills/tree/main  
+- https://github.com/Ted0321/kotetsu-work-ai-skills
   仕事が前に進むAIスキルを配るリポジトリ  
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks
@@ -31,13 +31,26 @@
   BMAD(Breakthrough Method for Agile AI-Driven Development )  
 
 - https://github.com/obra/superpowers  
-  superpowers  
-
+  superpowers
+  
+- https://github.com/awslabs/aidlc-workflows
+  AI駆動開発ライフサイクル（AI-DLC）
 
 ## ツール
 
 - https://github.com/microsoft/skill-recorder
-  人間の画面操作を録画し、その手順をAIエージェント用のSkillへ変換するツール  
+  人間の画面操作を録画し、その手順をAIエージェント用のSkillへ変換するツール
+
+- https://github.com/nashsu/llm_wiki/blob/main/README_JA.md
+  LLM Wiki
+  
+## そのほか
+
+- https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f
+  LLM Wiki (LLM Knowledge Base)  
+  Andrej Karpathy提唱のナレッジ管理手法
+  
+  
 
 ## VS Code拡張機能
 - https://github.com/microsoft/AI-Engineering-Coach
