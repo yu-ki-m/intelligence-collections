@@ -12,6 +12,8 @@
 - https://github.com/Ted0321/kotetsu-work-ai-skills  
   仕事が前に進むAIスキルを配るリポジトリ
 
+- https://github.com/ReScienceLab/opc-skills  
+  個人開発者向けに、需要調査・SEO・ドメイン探索・画像制作などをAIへ実行させる Agent Skill集  
    
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
@@ -36,7 +38,7 @@
 - https://github.com/awslabs/aidlc-workflows  
   AI駆動開発ライフサイクル（AI-DLC）
 
-- https://github.com/paperclipai/paperclip
+- https://github.com/paperclipai/paperclip  
   複数のAIエージェントへ仕事を割り当て、実行・承認・予算・進捗を一元管理するOSS
 
 ## ツール
@@ -54,7 +56,12 @@
 
 - https://github.com/microsoft/AI-Engineering-Coach  
   ローカルセッション履歴を解析し、AIを使った開発方法を採点・改善するVS Code拡張機能
-  
+## IDE/Terminal
+
+- https://github.com/Untrivial-ai/agent-orchestrator  
+  複数のコーディングAIを並列実行し、Worktree・PR・CI・レビューまで一元管理するデスクトップ型Agent IDE
+- Orca
+- Herdr
 ## そのほか  
 
 - https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f  
@@ -63,3 +70,4 @@
   
 - https://agent-plugins.org/  
   スキルやMCPサーバ設定の共通
+  
