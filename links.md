@@ -2,19 +2,22 @@
 
 ## skills
 
-- https://github.com/anthropics/skills  
+- https://github.com/anthropics/skills
+
 - https://github.com/virgiliojr94/book-to-skill  
+
+- https://github.com/imxv/Pretty-mermaid-skills  
   
 - https://github.com/mattpocock/skills  
 
-- https://github.com/cathrynlavery/diagram-design  
+- https://github.com/cathrynlavery/diagram-design    
 
-- https://github.com/Ted0321/kotetsu-work-ai-skills  
-  仕事が前に進むAIスキルを配るリポジトリ
+- https://github.com/Ted0321/kotetsu-work-ai-skills    
+  仕事が前に進むAIスキルを配るリポジトリ  
 
 - https://github.com/ReScienceLab/opc-skills  
   個人開発者向けに、需要調査・SEO・ドメイン探索・画像制作などをAIへ実行させる Agent Skill集  
-   
+
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
     ```
@@ -43,6 +46,22 @@
 
 ## ツール
 
+- https://github.com/microsoft/waza
+  Agent Skillを作成し、テスト・採点・モデル比較・品質改善まで行う Skill向け評価CLI／フレームワーク です
+  ```
+  $env:Path += ";C:\Users\yu_ki\AppData\Local\Microsoft\Waza"
+  ```
+  - 評価を実行する
+    ```
+    waza run my-skill -v -o results.json
+    ```
+  - Skillの構造や評価定義を検査する場合
+    ```
+    copilot login
+    waza models
+    waza run my-skill --executor copilot-sdk --model <表示されたモデルID> -v -o results.json
+    ```
+  
 - https://github.com/microsoft/skill-recorder  
   人間の画面操作を録画し、その手順をAIエージェント用のSkillへ変換するツール  
 
@@ -62,6 +81,12 @@
   複数のコーディングAIを並列実行し、Worktree・PR・CI・レビューまで一元管理するデスクトップ型Agent IDE
 - Orca
 - Herdr
+
+## 付帯ツール  
+- https://github.com/microsoft/coreutils   
+  ls, catをWindwosで動かすためのツール  
+  `winget install Microsoft.Coreutils` ※管理者権限  
+  
 ## そのほか  
 
 - https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f  
