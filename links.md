@@ -10,7 +10,9 @@
 - https://github.com/cathrynlavery/diagram-design  
 
 - https://github.com/Ted0321/kotetsu-work-ai-skills  
-  仕事が前に進むAIスキルを配るリポジトリ    
+  仕事が前に進むAIスキルを配るリポジトリ
+
+   
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
     ```
@@ -34,6 +36,9 @@
 - https://github.com/awslabs/aidlc-workflows  
   AI駆動開発ライフサイクル（AI-DLC）
 
+- https://github.com/paperclipai/paperclip
+  複数のAIエージェントへ仕事を割り当て、実行・承認・予算・進捗を一元管理するOSS
+
 ## ツール
 
 - https://github.com/microsoft/skill-recorder  
@@ -41,6 +46,14 @@
 
 - https://github.com/nashsu/llm_wiki/blob/main/README_JA.md  
   LLM Wiki
+
+- https://github.com/semantica-agi/semantica  
+  AIエージェントが利用する情報を「文脈グラフ・知識グラフ・意思決定履歴」として保存・検索・説明するPython基盤  
+  
+## VS Code拡張機能  
+
+- https://github.com/microsoft/AI-Engineering-Coach  
+  ローカルセッション履歴を解析し、AIを使った開発方法を採点・改善するVS Code拡張機能
   
 ## そのほか  
 
@@ -48,9 +61,5 @@
   LLM Wiki (LLM Knowledge Base)    
   Andrej Karpathy提唱のナレッジ管理手法  
   
-  
-
-## VS Code拡張機能  
-
-- https://github.com/microsoft/AI-Engineering-Coach  
-  ローカルセッション履歴を解析し、AIを使った開発方法を採点・改善するVS Code拡張機能  
+- https://agent-plugins.org/  
+  スキルやMCPサーバ設定の共通
