@@ -102,3 +102,16 @@
 - https://agent-plugins.org/  
   スキルやMCPサーバ設定の共通
   
+- https://github.com/architecture-decision-record/architecture-decision-record  
+  Architecture decision record (ADR)    
+  アーキテクチャ決定レコード(ADR)は、重要なアーキテクチャの決定とその文脈、結果を記録する文書。   
+  例:マイクロサービス採用、認証方式、DB選定、マルチリージョン構成  
+
+- https://github.com/adr/madr    
+  Markdown Architectural Decision Records(MADR)
+
+- https://zenn.dev/softbank/articles/ee93e87a9d5dac
+  Design Decision Record  
+  Zenn(AIとの対話履歴を資産にする。DDR（Design Decision Record）自動記録の仕組み)
+
+  
