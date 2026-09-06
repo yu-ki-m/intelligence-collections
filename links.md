@@ -30,6 +30,11 @@
 - https://github.com/addyosmani/agent-skills  
   要件定義・設計・実装・テスト・レビュー・リリースの工程を、Claude CodeやCodexなどへ一貫して守らせるための実務向けSkill集
 
+- https://github.com/github/awesome-copilot
+
+- https://github.com/NousResearch/hermes-agent
+  AIエージェント本体・実行基盤  
+  過去の会話と作業経験を記憶し、そこからSkillを自動生成・更新しながら、CLIやTelegramなどで継続稼働するオープンソースの汎用AIエージェント  
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
     ```
@@ -122,11 +127,12 @@
   アーキテクチャ決定レコード(ADR)は、重要なアーキテクチャの決定とその文脈、結果を記録する文書。   
   例:マイクロサービス採用、認証方式、DB選定、マルチリージョン構成  
 
-- https://github.com/adr/madr    
-  Markdown Architectural Decision Records(MADR)
+- https://github.com/adr/madr      
+  Markdown Architectural Decision Records(MADR)  
 
-- https://zenn.dev/softbank/articles/ee93e87a9d5dac
+- https://zenn.dev/softbank/articles/ee93e87a9d5dac  
   Design Decision Record  
-  Zenn(AIとの対話履歴を資産にする。DDR（Design Decision Record）自動記録の仕組み)
+  Zenn(AIとの対話履歴を資産にする。DDR（Design Decision Record）自動記録の仕組み)  
+
 
   
