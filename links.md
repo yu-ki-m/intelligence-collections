@@ -32,8 +32,8 @@
 
 - https://github.com/github/awesome-copilot
 
-- https://github.com/NousResearch/hermes-agent
-  AIエージェント本体・実行基盤  
+- https://github.com/NousResearch/hermes-agent  
+  AIエージェント本体・実行基盤    
   過去の会話と作業経験を記憶し、そこからSkillを自動生成・更新しながら、CLIやTelegramなどで継続稼働するオープンソースの汎用AIエージェント  
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
@@ -60,6 +60,10 @@
 
 - https://github.com/paperclipai/paperclip  
   複数のAIエージェントへ仕事を割り当て、実行・承認・予算・進捗を一元管理するOSS
+
+- https://github.com/microsoft/agent-framework  
+  Python／.NETで複数のAIエージェントを作成し、直列・並列・引き継ぎなどのワークフローとして実行・監視・デプロイするためのオープンソースSDK
+
 
 ## ツール
 - https://github.com/microsoft/waza  
