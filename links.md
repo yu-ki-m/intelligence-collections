@@ -1,6 +1,6 @@
 # Link
 
-## skills
+## skills / agents
 
 - https://github.com/anthropics/skills
   
@@ -26,6 +26,9 @@
 
 - https://github.com/SeanJ1ang/design-judge-skills  
   デザイン賞の調査・作品評価・応募先選定・申請文作成・提出前確認を、AIエージェントに実行させるスキル集
+
+- https://github.com/addyosmani/agent-skills  
+  要件定義・設計・実装・テスト・レビュー・リリースの工程を、Claude CodeやCodexなどへ一貫して守らせるための実務向けSkill集
 
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
@@ -54,7 +57,6 @@
   複数のAIエージェントへ仕事を割り当て、実行・承認・予算・進捗を一元管理するOSS
 
 ## ツール
-
 - https://github.com/microsoft/waza  
   Agent Skillを作成し、テスト・採点・モデル比較・品質改善まで行う Skill向け評価CLI／フレームワーク です
   ```
@@ -70,12 +72,15 @@
     waza models
     waza run my-skill --executor copilot-sdk --model <表示されたモデルID> -v -o results.json
     ```
+
+- https://github.com/vercel/eve  
+  Vercel製プロンプト・ツール・メモリ・状態をファイルとして管理し、停止後も処理を再開できる常駐型AIエージェントを構築・運用するためのオープンソースフレームワーク
   
 - https://github.com/microsoft/skill-recorder  
   人間の画面操作を録画し、その手順をAIエージェント用のSkillへ変換するツール  
 
 - https://github.com/nashsu/llm_wiki/blob/main/README_JA.md  
-  LLM Wiki
+  LLM Wikiツール
 
 - https://github.com/semantica-agi/semantica  
   AIエージェントが利用する情報を「文脈グラフ・知識グラフ・意思決定履歴」として保存・検索・説明するPython基盤  
@@ -90,6 +95,9 @@
   複数のコーディングAIを並列実行し、Worktree・PR・CI・レビューまで一元管理するデスクトップ型Agent IDE
 - Orca
 - Herdr
+- https://github.com/trailhq/Graft
+  Graft
+  コードベースの構造・依存関係・役割をグラフ化し、Claude CodeやCodexなどへ必要な情報を渡すことで、毎回のコード探索とトークン消費を削減するオープンソースのコンテキスト基盤  
 
 ## 付帯ツール  
 - https://github.com/microsoft/coreutils   
@@ -102,9 +110,9 @@
   LLM Wiki (LLM Knowledge Base)    
   Andrej Karpathy提唱のナレッジ管理手法
 
-- https://cloud.google.com/blog/ja/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/  
-  Google製LLM Wikiの標準化（Open Knowledge Format（OKF））    
-  - https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf    
+- https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf
+  Google製LLM Wikiの標準化（Open Knowledge Format（OKF））    　　
+  - https://cloud.google.com/blog/ja/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/  
   
 - https://agent-plugins.org/  
   スキルやMCPサーバ設定の共通
