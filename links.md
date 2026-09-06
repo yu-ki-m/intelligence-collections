@@ -4,7 +4,7 @@
 
 - https://github.com/anthropics/skills
   
-- https://github.com/mattpocock/skills
+- https://github.com/mattpocock/skills  
   grillingを含む開発作業の進め方をエージェントに教えるスキル集
 
 - https://github.com/virgiliojr94/book-to-skill  
@@ -23,6 +23,9 @@
 
 - https://github.com/DietrichGebert/ponytail  
   Ponytailは、AIコーディングエージェントの 過剰実装を抑制するためのルールセット兼プラグイン  
+
+- https://github.com/SeanJ1ang/design-judge-skills  
+  デザイン賞の調査・作品評価・応募先選定・申請文作成・提出前確認を、AIエージェントに実行させるスキル集
 
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
@@ -52,7 +55,7 @@
 
 ## ツール
 
-- https://github.com/microsoft/waza
+- https://github.com/microsoft/waza  
   Agent Skillを作成し、テスト・採点・モデル比較・品質改善まで行う Skill向け評価CLI／フレームワーク です
   ```
   $env:Path += ";C:\Users\yu_ki\AppData\Local\Microsoft\Waza"
@@ -97,7 +100,11 @@
 
 - https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f  
   LLM Wiki (LLM Knowledge Base)    
-  Andrej Karpathy提唱のナレッジ管理手法  
+  Andrej Karpathy提唱のナレッジ管理手法
+
+- https://cloud.google.com/blog/ja/products/data-analytics/how-the-open-knowledge-format-can-improve-data-sharing/  
+  Google製LLM Wikiの標準化（Open Knowledge Format（OKF））    
+  - https://github.com/GoogleCloudPlatform/knowledge-catalog/tree/main/okf    
   
 - https://agent-plugins.org/  
   スキルやMCPサーバ設定の共通
