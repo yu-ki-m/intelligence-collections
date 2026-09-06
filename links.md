@@ -3,6 +3,9 @@
 ## skills
 
 - https://github.com/anthropics/skills
+  
+- https://github.com/mattpocock/skills
+  grillingを含む開発作業の進め方をエージェントに教えるスキル集
 
 - https://github.com/virgiliojr94/book-to-skill  
 
