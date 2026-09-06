@@ -19,7 +19,10 @@
   仕事が前に進むAIスキルを配るリポジトリ  
 
 - https://github.com/ReScienceLab/opc-skills  
-  個人開発者向けに、需要調査・SEO・ドメイン探索・画像制作などをAIへ実行させる Agent Skill集  
+  個人開発者向けに、需要調査・SEO・ドメイン探索・画像制作などをAIへ実行させる Agent Skill集
+
+- https://github.com/DietrichGebert/ponytail  
+  Ponytailは、AIコーディングエージェントの 過剰実装を抑制するためのルールセット兼プラグイン  
 
 ## cookbooks
 - https://github.com/anthropics/claude-cookbooks  
