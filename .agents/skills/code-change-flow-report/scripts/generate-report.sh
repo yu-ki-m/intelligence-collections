@@ -20,7 +20,12 @@ skill_generator_source="$skill_root_dir/assets/generator"
 skill_cache_key="$(sha256sum "$skill_generator_source/package-lock.json" "$skill_generator_source/generate-report.mjs" | sha256sum | cut -c1-16)"
 skill_runtime_dir="${TMPDIR:-/tmp}/code-change-flow-report-$skill_cache_key"
 
+node "$skill_script_dir/validate-review-data.mjs" --self-test-root-sections
 node "$skill_script_dir/validate-review-data.mjs" "$skill_input_path"
+node "$skill_script_dir/verify-caller-coverage.mjs" --self-test
+node "$skill_script_dir/verify-caller-coverage.mjs" "$skill_input_path"
+node "$skill_script_dir/verify-continuation-structure.mjs" --self-test
+node "$skill_script_dir/verify-continuation-structure.mjs" "$skill_input_path"
 
 mkdir -p "$skill_runtime_dir"
 cp "$skill_generator_source/package.json" "$skill_runtime_dir/package.json"

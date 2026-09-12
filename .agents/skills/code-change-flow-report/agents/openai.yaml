@@ -1,0 +1,12 @@
+interface:
+  display_name: code change flow report
+  short_description: Gitコミットまたは差分を調査し、Controllerなどの入口から変更箇所と戻り値までを、未変更コードを含む入れ子の比較表として日本語HTMLへ出力する。コミット単位の変更説明、コードレビュー資料、処理フロー付き差分報告を求められた場合に使用する。単なる差分要約やコード修正だけには使用しない。
+  icon_small: assets/icon.svg
+  icon_large: assets/icon.svg
+policy:
+  products:
+  - chatgpt
+  - codex
+  - api
+  - atlas
+  allow_implicit_invocation: true

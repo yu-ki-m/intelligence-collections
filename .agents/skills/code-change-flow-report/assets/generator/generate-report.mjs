@@ -6,7 +6,7 @@ const MAX_LEVELS = 10_000;
 const INDENT_PX = 64;
 const PRINT_INDENT_MM = 12;
 const THEME = "github-light";
-const TEMPLATE_VERSION = "2026.09.12.4";
+const TEMPLATE_VERSION = "2026.09.12.14";
 
 const [inputPath, outputPath] = process.argv.slice(2);
 
@@ -116,6 +116,7 @@ function normalizeCommits(data) {
     return [{
       hash: "commit-1",
       message: stringValue(data.title, "変更内容"),
+      overview: stringValue(data.overview, "{コミット全体の概要を記載}"),
       author: "",
       committedAt: "",
       steps: data.steps,
@@ -134,6 +135,7 @@ function normalizeCommits(data) {
     return {
       hash: stringValue(commit.hash, `commit-${index + 1}`),
       message: stringValue(commit.message, `コミット ${index + 1}`),
+      overview: stringValue(commit.overview, "{コミット全体の概要を記載}"),
       author: optionalString(commit.author),
       committedAt: optionalString(commit.committedAt),
       steps: commit.steps,
@@ -270,13 +272,18 @@ function summarizeLocation(location) {
 function renderCommit(commit, highlighterInstance, languages) {
   const tabId = `commit-tab-${commit.index}`;
   const panelId = `commit-panel-${commit.index}`;
+  const overviewId = `commit-overview-${commit.index}`;
   const selected = commit.index === 0;
+  const rootSections = buildRootSections(commit.steps);
+  const rootSectionByStep = new Map(rootSections.map((section) => [section.startStep, section]));
   const renderedRows = commit.sequence.map((item, index) => {
     const previous = index === 0 ? null : commit.sequence[index - 1];
     const connector = previous
       ? (item.connectFromPrevious ? renderConnector(previous, item) : renderDisconnectedGap())
       : "";
-    return `<div class="flow-item" data-flow-index="${item.flowIndex}">${connector}${renderStep(item, commit.index, highlighterInstance, languages)}</div>`;
+    const rootSection = rootSectionByStep.get(item.step);
+    const sectionHeading = rootSection ? renderRootSectionHeading(rootSection, commit.index) : "";
+    return `<div class="flow-item" data-flow-index="${item.flowIndex}">${connector}${sectionHeading}${renderStep(item, commit.index, highlighterInstance, languages)}</div>`;
   }).join("\n");
   const metadata = [
     commit.author ? `<span>作成者: ${escapeHtml(commit.author)}</span>` : "",
@@ -286,9 +293,46 @@ function renderCommit(commit, highlighterInstance, languages) {
   const tab = `<button class="commit-tab" id="${tabId}" type="button" role="tab" aria-selected="${selected}" aria-controls="${panelId}" tabindex="${selected ? 0 : -1}"><span class="commit-tab-hash">${escapeHtml(commit.hash)}</span><span class="commit-tab-message">${escapeHtml(commit.message)}</span></button>`;
   const panel = `<section class="commit-panel" id="${panelId}" role="tabpanel" aria-labelledby="${tabId}" data-max-depth="${commit.maxDepth}"${selected ? "" : " hidden"}>
     <header class="commit-summary"><code>${escapeHtml(commit.hash)}</code><span class="commit-summary-message">${escapeHtml(commit.message)}</span>${metadata ? `<span class="commit-metadata">${metadata}</span>` : ""}</header>
+    <section class="commit-overview" aria-labelledby="${overviewId}">
+      <h2 class="commit-overview-title" id="${overviewId}">概要</h2>
+      <div class="commit-overview-scroll"><p class="commit-overview-body">${formatProse(commit.overview, "{コミット全体の概要を記載}")}</p></div>
+    </section>
 ${renderedRows || "    <p class=\"empty-commit\">このコミットに表示する変更はありません。</p>"}
   </section>`;
   return { tab, panel };
+}
+
+function buildRootSections(rootSteps) {
+  const startIndexes = [];
+  rootSteps.forEach((step, index) => {
+    if (index === 0 || step.connectFromPrevious === false) startIndexes.push(index);
+  });
+
+  return startIndexes.map((startIndex, sectionIndex) => {
+    const endIndex = startIndexes[sectionIndex + 1] ?? rootSteps.length;
+    const steps = rootSteps.slice(startIndex, endIndex);
+    return {
+      index: sectionIndex,
+      startStep: rootSteps[startIndex],
+      isFlow: steps.length > 1 || steps.some(hasDisplayedCalls)
+    };
+  });
+}
+
+function hasDisplayedCalls(step) {
+  return (step.calls ?? []).some((call) => Array.isArray(call.steps) && call.steps.length > 0);
+}
+
+function renderRootSectionHeading(section, commitIndex) {
+  const headingId = `root-section-${commitIndex}-${section.index}`;
+  const kind = section.isFlow ? "flow" : "standalone";
+  const description = section.isFlow
+    ? `<p class="root-section-description">${formatProse(section.startStep.flowDescription, "{この処理フローが何を開始し、どの結果まで示すかを記載}")}</p>`
+    : "";
+  return `<section class="root-section-heading root-section-heading--${kind}" data-section-kind="${kind}" aria-labelledby="${headingId}">
+  <h2 class="root-section-title" id="${headingId}">${escapeHtml(stringValue(section.startStep.flowTitle, "{タイトル}"))}</h2>
+  ${description}
+</section>`;
 }
 
 function renderStep(item, commitIndex, highlighterInstance, languages) {
@@ -311,7 +355,7 @@ function renderStep(item, commitIndex, highlighterInstance, languages) {
 
   const tracks = renderTracks(activeTracks, "row-track");
   const entryBranch = entry.kind === "call"
-    ? `${activeTracks.includes(entry.parentDepth) ? "" : `<span class="entry-stem" style="${renderTrackStyle(entry.parentDepth)}"></span>`}<span class="entry-branch" style="${renderBranchStyle(entry.parentDepth, depth)}"></span>`
+    ? `<span class="entry-stem" style="${renderTrackStyle(entry.parentDepth)}"></span><span class="entry-branch" style="${renderBranchStyle(entry.parentDepth, depth)}"></span>`
     : "";
 
   return `<section class="flow-row" data-depth="${depth}" style="--screen-offset:${screenOffset}px;--print-offset:${printOffset}mm">
@@ -320,20 +364,20 @@ function renderStep(item, commitIndex, highlighterInstance, languages) {
     <div class="source-header" id="flow-${commitIndex}-${item.flowIndex}">${collapseButton}<p class="source-location">${filePath}:${startLine}-${endLine}</p></div>
     <div class="comparison">
     <section class="column">
-      <h2 class="column-title">変更前</h2>
-      <div class="editor">${beforeHtml}</div>
-    </section>
-    <section class="column">
-      <h2 class="column-title">変更後</h2>
-      <div class="editor">${afterHtml}</div>
-    </section>
-    <section class="column">
       <h2 class="column-title">解説</h2>
       <div class="details">
         <section class="detail"><h3 class="detail-title">概説</h3><p class="detail-body">${formatProse(step.overview, "{変更内容を1～2文で記載}")}</p></section>
         <section class="detail"><h3 class="detail-title">変更理由</h3><p class="detail-body">${formatProse(step.reason, "{なぜ変更したか}")}</p></section>
         <section class="detail"><h3 class="detail-title">処理仕様</h3><p class="detail-body">${formatProse(step.specification, "{変更後どう動くか}")}</p></section>
       </div>
+    </section>
+    <section class="column">
+      <h2 class="column-title">変更前</h2>
+      <div class="editor">${beforeHtml}</div>
+    </section>
+    <section class="column">
+      <h2 class="column-title">変更後</h2>
+      <div class="editor">${afterHtml}</div>
     </section>
     <section class="column">
       <h2 class="column-title">備考</h2>
@@ -352,7 +396,12 @@ function renderConnector(previous, current) {
 
   const tracks = [...levels]
     .sort((left, right) => left - right)
-    .map((level) => `<span class="connector-track" style="${renderTrackStyle(level)}"></span>`)
+    .map((level) => {
+      const className = isCallEntry && level === targetDepth
+        ? "connector-track connector-track--entry"
+        : "connector-track";
+      return `<span class="${className}" style="${renderTrackStyle(level)}"></span>`;
+    })
     .join("");
 
   return `<div class="flow-connector" aria-hidden="true">${tracks}</div>`;
@@ -473,64 +522,74 @@ function renderDocument({ title, maxDepth, renderedCommits }) {
   <meta name="code-change-flow-template-version" content="${TEMPLATE_VERSION}">
   <title>${escapeHtml(title)}</title>
   <style>
-    :root{color-scheme:light;--line:#a8a8a8;--paper:#fff;--ink:#242424}
+    :root{color-scheme:light;--canvas:#f3f5f8;--paper:#fff;--paper-soft:#f8fafc;--code-surface:#fbfcfe;--header-bg:#eef2f6;--line:#c8d0da;--line-strong:#96a1af;--ink:#1d2735;--muted:#5f6b7a;--accent:#2563eb;--accent-soft:#edf4ff;--diff-remove:#ffebe9;--diff-add:#dafbe1;--shadow:0 2px 5px rgba(15,23,42,.12),0 12px 28px rgba(15,23,42,.09)}
     *{box-sizing:border-box}
-    html{background:#f2f3f5}
-    body{margin:0;color:var(--ink);background:var(--paper);font-family:"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;font-size:14px;line-height:1.55}
-    main{--call-indent:${INDENT_PX}px;--track-inset:32px;--source-height:22px;--flow-overhang:${screenOverhang}px;--table-width:2460px;width:calc(var(--table-width) + var(--flow-overhang));margin:32px auto 48px}
-    .commit-tabs{position:sticky;z-index:20;top:0;left:10px;width:min(var(--table-width),calc(100vw - 20px));margin:0 0 14px;overflow-x:auto;border:1px solid var(--line);background:#fff}
-    .commit-tab-list{display:flex;width:max-content;min-width:100%}
-    .commit-tab{display:flex;flex:0 0 auto;align-items:center;gap:8px;max-width:360px;height:40px;padding:0 14px;border:0;border-right:1px solid #c9c9c9;border-bottom:3px solid transparent;background:#f2f2f2;color:var(--ink);font:inherit;white-space:nowrap;cursor:pointer}
-    .commit-tab:last-child{border-right:0}
-    .commit-tab:hover{background:#e9eaec}
-    .commit-tab[aria-selected="true"]{border-bottom-color:#57606a;background:#fff}
-    .commit-tab:focus-visible{position:relative;z-index:1;outline:2px solid #0969da;outline-offset:-2px}
+    html{background:var(--canvas)}
+    body{margin:0;color:var(--ink);background:var(--canvas);font-family:"Yu Gothic","YuGothic","Hiragino Kaku Gothic ProN","Meiryo",sans-serif;font-size:14px;line-height:1.55}
+    main{--call-indent:${INDENT_PX}px;--track-inset:32px;--source-height:24px;--flow-overhang:${screenOverhang}px;--table-width:2460px;width:calc(var(--table-width) + var(--flow-overhang));margin:24px auto 48px}
+    .commit-tabs{position:sticky;z-index:20;top:8px;left:10px;width:min(var(--table-width),calc(100vw - 20px));margin:0 0 14px;padding:3px;overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--paper);box-shadow:0 2px 10px rgba(15,23,42,.08);scrollbar-color:#aeb8c5 transparent;scrollbar-width:thin}
+    .commit-tab-list{display:flex;gap:2px;width:max-content;min-width:100%}
+    .commit-tab{display:flex;flex:0 0 auto;align-items:center;gap:8px;max-width:360px;height:36px;padding:0 13px;border:0;border-radius:5px;background:transparent;color:var(--muted);font:inherit;white-space:nowrap;cursor:pointer}
+    .commit-tab:hover{background:var(--paper-soft);color:var(--ink)}
+    .commit-tab[aria-selected="true"]{background:var(--accent-soft);box-shadow:inset 0 -2px var(--accent);color:#174ea6;font-weight:600}
+    .commit-tab:focus-visible{position:relative;z-index:1;outline:2px solid var(--accent);outline-offset:-2px}
     .commit-tab-hash,.commit-summary code{font-family:Consolas,"BIZ UDゴシック","MS Gothic",monospace;font-size:12px}
-    .commit-tab-hash{color:#57606a}
+    .commit-tab-hash{color:inherit}
     .commit-tab-message{overflow:hidden;text-overflow:ellipsis}
     .commit-panel[hidden]{display:none}
-    .commit-summary{display:flex;align-items:center;gap:12px;width:var(--table-width);min-height:34px;margin:0 0 10px;padding:5px 8px;border:1px solid #c9c9c9;background:#fafafa;font-size:12px}
-    .commit-summary-message{font-size:13px}
-    .commit-metadata{display:flex;gap:12px;margin-left:auto;color:#57606a}
-    .empty-commit{width:var(--table-width);margin:0;padding:16px;border:1px solid var(--line)}
+    .commit-summary{display:flex;align-items:center;gap:12px;width:var(--table-width);min-height:36px;margin:0 0 6px;padding:5px 10px;border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:6px;background:var(--paper);box-shadow:0 1px 3px rgba(15,23,42,.06);font-size:12px}
+    .commit-summary>code{padding:2px 6px;border-radius:4px;background:var(--accent-soft);color:#174ea6;font-weight:600}
+    .commit-summary-message{font-size:13px;font-weight:600}
+    .commit-metadata{display:flex;gap:12px;margin-left:auto;color:var(--muted)}
+    .commit-overview{width:var(--table-width);margin:0 0 14px;overflow:hidden;border:1px solid var(--line);border-radius:6px;background:var(--paper);box-shadow:0 1px 3px rgba(15,23,42,.06)}
+    .commit-overview-title{height:26px;margin:0;padding:2px 10px;border-bottom:1px solid var(--line);background:var(--header-bg);color:#344054;font-size:14px;font-weight:600;line-height:21px}
+    .commit-overview-scroll{max-height:240px;overflow-y:auto;scrollbar-color:#aeb8c5 transparent;scrollbar-width:thin}
+    .commit-overview-body{max-width:1200px;margin:0;padding:9px 14px;color:var(--ink);font-size:13px;line-height:1.7;white-space:pre-wrap;overflow-wrap:anywhere}
+    .empty-commit{width:var(--table-width);margin:0;padding:16px;border:1px solid var(--line);border-radius:6px;background:var(--paper);color:var(--muted)}
     .flow-item[hidden]{display:none}
+    .root-section-heading{width:var(--table-width);margin:0 0 8px;padding:8px 12px;border:1px solid var(--line);border-left:4px solid #64748b;border-radius:6px;background:#e8edf3;color:var(--ink);break-after:avoid;page-break-after:avoid}
+    .root-section-heading--standalone{padding-top:6px;padding-bottom:6px}
+    .root-section-title{margin:0;font-size:14px;font-weight:700;line-height:1.5}
+    .root-section-description{max-width:1200px;margin:3px 0 0;color:#475467;font-size:12px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
     .flow-row{position:relative;width:100%;break-inside:avoid;page-break-inside:avoid}
-    .review-unit{position:relative;z-index:1;width:var(--table-width);margin-left:var(--screen-offset);background:var(--paper)}
-    .source-header{display:flex;align-items:center;gap:3px;height:var(--source-height);overflow:hidden}
-    .source-location{min-width:0;margin:0;overflow:hidden;font-size:12px;line-height:1.5;white-space:nowrap;text-overflow:ellipsis}
+    .review-unit{position:relative;z-index:1;width:var(--table-width);margin-left:var(--screen-offset);border-radius:6px;background:var(--paper);box-shadow:var(--shadow)}
+    .source-header{display:flex;align-items:center;gap:3px;height:var(--source-height);padding:0 8px;overflow:hidden;border:1px solid var(--line);border-bottom:0;border-radius:6px 6px 0 0;background:var(--paper-soft)}
+    .source-location{min-width:0;margin:0;overflow:hidden;color:#344054;font-family:Consolas,"BIZ UDゴシック","MS Gothic",monospace;font-size:12px;font-weight:600;line-height:1.5;white-space:nowrap;text-overflow:ellipsis}
     .nest-toggle,.nest-toggle-placeholder{flex:none;width:18px;height:18px}
-    .nest-toggle{display:inline-grid;place-items:center;padding:0;border:0;border-radius:2px;background:transparent;color:#57606a;cursor:pointer}
-    .nest-toggle:hover{background:#ededed;color:var(--ink)}
-    .nest-toggle:focus-visible{outline:2px solid #0969da;outline-offset:1px}
+    .nest-toggle{display:inline-grid;place-items:center;padding:0;border:0;border-radius:3px;background:transparent;color:var(--muted);cursor:pointer}
+    .nest-toggle:hover{background:var(--accent-soft);color:var(--accent)}
+    .nest-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
     .nest-toggle-icon{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
     .nest-toggle[aria-expanded="false"] .nest-toggle-icon{transform:rotate(-90deg)}
-    .comparison{display:grid;grid-template-columns:2fr 2fr 1fr 1fr;align-items:stretch;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+    .comparison{display:grid;grid-template-columns:1fr 2fr 2fr 1fr;align-items:stretch;overflow:hidden;border-top:1px solid var(--line);border-left:1px solid var(--line);border-radius:0 0 6px 6px}
     .column{display:grid;grid-template-rows:26px auto;align-content:start;min-width:0;border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
-    .column-title{margin:0;padding:2px 8px;border-bottom:1px solid var(--line);background:#f2f2f2;font-size:14px;font-weight:400;line-height:21px;text-align:center}
-    .editor{align-self:start;min-width:0;overflow:hidden;background:#fff}
-    .editor .shiki{margin:0;padding:10px 12px;overflow:auto;background:#fff!important;font-family:Consolas,"BIZ UDゴシック","MS Gothic",monospace;font-size:13px;line-height:1.5;white-space:pre}
+    .column-title{margin:0;padding:2px 8px;border-bottom:1px solid var(--line);background:var(--header-bg);color:#344054;font-size:14px;font-weight:600;line-height:21px;text-align:center}
+    .editor{align-self:start;min-width:0;overflow:hidden;background:var(--code-surface)}
+    .editor .shiki{margin:0;padding:8px 10px;overflow:auto;background:var(--code-surface)!important;font-family:Consolas,"BIZ UDゴシック","MS Gothic",monospace;font-size:13px;line-height:1.5;white-space:pre;scrollbar-color:#aeb8c5 transparent;scrollbar-width:thin}
     .editor .shiki code{display:block;width:max-content;min-width:100%}
     .editor .shiki .diff-line{position:relative;display:block;min-height:1.5em;padding:0 12px 0 30px}
     .editor .shiki .diff-line::before{position:absolute;top:0;left:0;width:24px;color:#6e7781;text-align:center;content:" ";user-select:none}
-    .editor .shiki .diff-line--removed{background:#ffebe9}
+    .editor .shiki .diff-line--removed{background:var(--diff-remove)}
     .editor .shiki .diff-line--removed::before{color:#cf222e;content:"-"}
-    .editor .shiki .diff-line--added{background:#dafbe1}
+    .editor .shiki .diff-line--added{background:var(--diff-add)}
     .editor .shiki .diff-line--added::before{color:#1a7f37;content:"+"}
-    .details{display:grid;grid-template-rows:auto auto auto;align-content:start;min-height:0}
-    .detail{padding:4px 5px;overflow:visible;border-bottom:1px solid #c9c9c9}
-    .detail:last-child{max-height:536px;overflow-y:auto;border-bottom:0;scrollbar-gutter:stable}
-    .detail-title{margin:0 0 1px;font-size:12px;font-weight:400;line-height:1.4}
-    .detail-body{min-height:28px;margin:0;padding-left:24px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
-    .remarks{align-self:start;padding:6px 8px}
-    .remarks-body{margin:0;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .details{display:grid;grid-template-rows:auto auto auto;align-content:start;min-height:0;background:var(--paper)}
+    .detail{padding:5px 8px;overflow:visible;border-bottom:1px solid var(--line)}
+    .detail:last-child{max-height:536px;overflow-y:auto;border-bottom:0;scrollbar-color:#aeb8c5 transparent;scrollbar-gutter:stable;scrollbar-width:thin}
+    .detail-title{margin:0 0 1px;color:var(--muted);font-size:12px;font-weight:600;line-height:1.4}
+    .detail-body{margin:0;padding-left:16px;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+    .remarks{align-self:start;padding:6px 10px;background:var(--paper-soft)}
+    .remarks-body{margin:0;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
     .row-connectors{position:absolute;z-index:0;inset:0;pointer-events:none}
-    .row-track,.entry-stem,.connector-track{position:absolute;left:var(--screen-track);width:0;border-left:1px solid var(--line)}
+    .row-track,.entry-stem,.connector-track{position:absolute;left:var(--screen-track);width:0}
+    .row-track,.connector-track{border-left:1px dotted var(--line-strong)}
+    .entry-stem,.connector-track--entry{border-left:1px solid var(--line-strong)}
     .row-track{top:0;bottom:0}
     .entry-stem{top:0;height:var(--source-height)}
-    .entry-branch{position:absolute;top:var(--source-height);left:var(--screen-branch-left);width:var(--screen-branch-width);border-top:1px solid var(--line)}
-    .flow-connector{position:relative;width:100%;height:20px;pointer-events:none}
+    .entry-branch{position:absolute;top:var(--source-height);left:var(--screen-branch-left);width:var(--screen-branch-width);border-top:1px solid var(--line-strong)}
+    .flow-connector{position:relative;width:100%;height:18px;pointer-events:none}
     .connector-track{top:0;bottom:0}
-    @media(max-width:820px){main{margin:20px 10px 48px}}
+    @media(max-width:820px){main{margin:16px 10px 48px}}
     @media print{
       @page{size:A4 landscape;margin:10mm}
       html,body{background:#fff}
@@ -540,7 +599,11 @@ function renderDocument({ title, maxDepth, renderedCommits }) {
       .flow-item[hidden]{display:block!important}
       .commit-panel+.commit-panel{break-before:page}
       .nest-toggle,.nest-toggle-placeholder{display:none}
-      .review-unit{margin-left:var(--print-offset)}
+      .commit-overview{border-radius:0;box-shadow:none}
+      .commit-overview-scroll{max-height:none;overflow:visible}
+      .root-section-heading{border-radius:0;background:#eef1f4}
+      .review-unit{margin-left:var(--print-offset);border-radius:0;box-shadow:none}
+      .source-header,.comparison{border-radius:0}
       .column{grid-template-rows:7mm auto}
       .detail:last-child{max-height:none;overflow:visible;scrollbar-gutter:auto}
       .flow-connector{height:5mm}

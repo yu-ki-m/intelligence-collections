@@ -4,10 +4,62 @@
     {
       "hash": "4e91c2a",
       "message": "注文状態を保存対象へ追加",
+      "overview": "このコミットは、新規注文の状態を注文IDと一緒に保存し、登録後の処理が注文を受付済みと判定できる状態にする。変更前は、OrderServiceがRECEIVEDを設定してもOrderRepositoryが状態をINSERT文へ渡さないため、データベースに注文状態が残らなかった。注文状態とは、注文が受付、出荷、完了のどの段階にあるかを表す値である。OrderRepositoryがorder.getStatus()をINSERT文へ渡すため、保存後に注文を読み直してもRECEIVEDを取得できる。例えば、注文ID1001を登録して直後に照会すると、同じ注文レコードのstatusにはRECEIVEDが格納される。",
       "author": "Yuki",
       "committedAt": "2026-09-12 15:40",
+      "callerCoverage": {
+        "version": 1,
+        "targets": [
+          {
+            "id": "c1-order-repository-save",
+            "displayName": "OrderRepository.save(Order)",
+            "analysisMode": "callers",
+            "changedStepIds": [
+              "c1-repository-save-change"
+            ],
+            "evidence": [
+              {
+                "kind": "semantic",
+                "method": "LSP Call Hierarchy",
+                "scope": "src",
+                "query": "OrderRepository.save(Order)",
+                "resultSummary": "OrderService.create(OrderRequest)の1件を検出した。",
+                "callSiteIds": [
+                  "c1-service-repository-save-callsite"
+                ]
+              },
+              {
+                "kind": "text",
+                "method": "rg",
+                "scope": "src",
+                "query": "repository.save(",
+                "resultSummary": "本番コードからOrderService.create(OrderRequest)の1件を検出した。",
+                "callSiteIds": [
+                  "c1-service-repository-save-callsite"
+                ]
+              }
+            ],
+            "callSites": [
+              {
+                "id": "c1-service-repository-save-callsite",
+                "callerSymbol": "OrderService.create(OrderRequest)",
+                "callerPath": "src/main/java/example/OrderService.java",
+                "startLine": 46,
+                "endLine": 46,
+                "status": "included",
+                "entryStepId": "c1-controller-create-call",
+                "callerStepId": "c1-service-save-call",
+                "changedStepId": "c1-repository-save-change"
+              }
+            ]
+          }
+        ]
+      },
       "steps": [
         {
+          "id": "c1-controller-create-call",
+          "flowTitle": "注文登録APIから注文状態を保存するフロー",
+          "flowDescription": "API利用者が注文登録を要求してから、OrderController、OrderService、OrderRepositoryが注文状態を保存し、登録結果をHTTPレスポンスとして返すまでを示す。",
           "filePath": "src/main/java/example/OrderController.java",
           "startLine": 18,
           "endLine": 22,
@@ -22,6 +74,7 @@
             {
               "steps": [
                 {
+                  "id": "c1-service-save-call",
                   "filePath": "src/main/java/example/OrderService.java",
                   "startLine": 42,
                   "endLine": 48,
@@ -36,6 +89,7 @@
                     {
                       "steps": [
                         {
+                          "id": "c1-repository-save-change",
                           "filePath": "src/main/java/example/OrderRepository.java",
                           "startLine": 30,
                           "endLine": 36,
@@ -53,6 +107,7 @@
                   ]
                 },
                 {
+                  "id": "c1-service-return",
                   "filePath": "src/main/java/example/OrderService.java",
                   "startLine": 50,
                   "endLine": 52,
@@ -70,6 +125,7 @@
           ]
         },
         {
+          "id": "c1-controller-return",
           "filePath": "src/main/java/example/OrderController.java",
           "startLine": 24,
           "endLine": 25,
@@ -87,10 +143,82 @@
     {
       "hash": "9ab4e70",
       "message": "監査ログに注文IDを追加",
+      "overview": "このコミットは、注文登録の監査ログへ保存済み注文IDを記録し、INFOレベルの登録ログを実行環境へ残す。調査担当者は、障害発生時にログの注文IDと注文レコードを照合して、対象の登録処理を特定できる。監査ログとは、誰がいつどの業務操作を行ったかを後から確認するための記録である。AuditLoggerがsavedOrder.getId()をログへ埋め込み、logback-spring.xmlがINFOを出力対象に含めるため、注文ID付きの記録が実行環境へ残る。例えば、注文ID1001の登録後に障害が発生した場合、調査担当者はログから1001を検索して登録時刻を確認できる。",
       "author": "Yuki",
       "committedAt": "2026-09-12 16:10",
+      "callerCoverage": {
+        "version": 1,
+        "targets": [
+          {
+            "id": "c2-audit-logger-created",
+            "displayName": "AuditLogger.created(SavedOrder)",
+            "analysisMode": "callers",
+            "changedStepIds": [
+              "c2-audit-log-change"
+            ],
+            "evidence": [
+              {
+                "kind": "semantic",
+                "method": "LSP Call Hierarchy",
+                "scope": "src",
+                "query": "AuditLogger.created(SavedOrder)",
+                "resultSummary": "OrderService.create(OrderRequest)の1件を検出した。",
+                "callSiteIds": [
+                  "c2-service-audit-callsite"
+                ]
+              },
+              {
+                "kind": "text",
+                "method": "rg",
+                "scope": "src",
+                "query": "auditLogger.created(",
+                "resultSummary": "本番コードからOrderService.create(OrderRequest)の1件を検出した。",
+                "callSiteIds": [
+                  "c2-service-audit-callsite"
+                ]
+              }
+            ],
+            "callSites": [
+              {
+                "id": "c2-service-audit-callsite",
+                "callerSymbol": "OrderService.create(OrderRequest)",
+                "callerPath": "src/main/java/example/OrderService.java",
+                "startLine": 55,
+                "endLine": 55,
+                "status": "included",
+                "entryStepId": "c2-controller-create-call",
+                "callerStepId": "c2-service-audit-call",
+                "changedStepId": "c2-audit-log-change"
+              }
+            ]
+          },
+          {
+            "id": "c2-logback-audit-level",
+            "displayName": "logback-spring.xmlのAuditLoggerログレベル",
+            "analysisMode": "not-applicable",
+            "changedStepIds": [
+              "c2-logback-level-change"
+            ],
+            "evidence": [
+              {
+                "kind": "manual",
+                "method": "設定ファイルの構造確認",
+                "scope": "src/main/resources/logback-spring.xml",
+                "query": "example.AuditLoggerのlogger設定",
+                "resultSummary": "この変更対象はメソッドではなく、Logbackが起動時に読み込む設定値である。",
+                "callSiteIds": []
+              }
+            ],
+            "callSites": [],
+            "reason": "設定値はJavaコードから直接呼び出されないため、呼び出し元の列挙対象ではない。"
+          }
+        ]
+      },
       "steps": [
         {
+          "id": "c2-controller-create-call",
+          "flowTitle": "注文登録から監査ログを記録するフロー",
+          "flowDescription": "API利用者が注文登録を要求してから、保存済み注文IDを監査ログへ記録し、登録結果をHTTPレスポンスとして返すまでを示す。",
           "filePath": "src/main/java/example/OrderController.java",
           "startLine": 18,
           "endLine": 22,
@@ -105,6 +233,7 @@
             {
               "steps": [
                 {
+                  "id": "c2-service-audit-call",
                   "filePath": "src/main/java/example/OrderService.java",
                   "startLine": 55,
                   "endLine": 55,
@@ -119,6 +248,7 @@
                     {
                       "steps": [
                         {
+                          "id": "c2-audit-log-change",
                           "filePath": "src/main/java/example/AuditLogger.java",
                           "startLine": 20,
                           "endLine": 24,
@@ -136,6 +266,7 @@
                   ]
                 },
                 {
+                  "id": "c2-service-return",
                   "filePath": "src/main/java/example/OrderService.java",
                   "startLine": 57,
                   "endLine": 58,
@@ -153,6 +284,7 @@
           ]
         },
         {
+          "id": "c2-controller-return",
           "filePath": "src/main/java/example/OrderController.java",
           "startLine": 24,
           "endLine": 25,
@@ -166,6 +298,8 @@
           "calls": []
         },
         {
+          "id": "c2-logback-level-change",
+          "flowTitle": "監査ログの出力レベル設定",
           "filePath": "src/main/resources/logback-spring.xml",
           "startLine": 12,
           "endLine": 14,

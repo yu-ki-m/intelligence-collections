@@ -5,6 +5,11 @@ import process from "node:process";
 const MAX_LEVELS = 10_000;
 const [inputPath] = process.argv.slice(2);
 
+if (inputPath === "--self-test-root-sections") {
+  runRootSectionSelfTest();
+  process.exit(0);
+}
+
 if (!inputPath) {
   console.error("Usage: node validate-review-data.mjs <review-data.json>");
   process.exit(1);
@@ -18,7 +23,7 @@ try {
 }
 
 assertObject(data, "root");
-const commits = data.commits ?? [{ hash: "working-tree", message: "変更内容", steps: data.steps }];
+const commits = data.commits ?? [{ hash: "working-tree", message: "変更内容", overview: data.overview, steps: data.steps }];
 assertArray(commits, "commits");
 if (commits.length === 0) fail("commits", "1件以上のコミットが必要です");
 
@@ -26,14 +31,25 @@ let totalSteps = 0;
 let totalChanged = 0;
 let totalContext = 0;
 let maximumDepth = 0;
+let totalRootSections = 0;
+let totalFlowSections = 0;
+let totalStandaloneSections = 0;
 
 commits.forEach((commit, commitIndex) => {
   const commitLocation = `commits[${commitIndex}]`;
   assertObject(commit, commitLocation);
   requireText(commit.hash, `${commitLocation}.hash`);
   requireText(commit.message, `${commitLocation}.message`);
+  requireText(commit.overview, `${commitLocation}.overview`);
+  if (!commit.overview.includes("例えば")) {
+    fail(`${commitLocation}.overview`, "変更全体の意味を説明した後に「例えば」で具体的な結果を示してください");
+  }
   assertArray(commit.steps, `${commitLocation}.steps`);
   if (commit.steps.length === 0) fail(`${commitLocation}.steps`, "1件以上のステップが必要です");
+  const rootSectionCounts = validateRootSectionHeadings(commit.steps, `${commitLocation}.steps`);
+  totalRootSections += rootSectionCounts.total;
+  totalFlowSections += rootSectionCounts.flows;
+  totalStandaloneSections += rootSectionCounts.standalone;
 
   let commitChanged = 0;
   let commitContext = 0;
@@ -82,6 +98,12 @@ commits.forEach((commit, commitIndex) => {
           fail(`${stepLocation}.connectFromPrevious`, "connectFromPreviousは1段目だけに指定できます");
         }
       }
+      if (flow.depth !== 0 && step.flowTitle !== undefined) {
+        fail(`${stepLocation}.flowTitle`, "flowTitleは第1階層の開始ステップだけに指定してください");
+      }
+      if (flow.depth !== 0 && step.flowDescription !== undefined) {
+        fail(`${stepLocation}.flowDescription`, "flowDescriptionは第1階層の開始ステップだけに指定してください");
+      }
 
       totalSteps += 1;
       maximumDepth = Math.max(maximumDepth, flow.depth + 1);
@@ -119,7 +141,106 @@ commits.forEach((commit, commitIndex) => {
   totalContext += commitContext;
 });
 
-console.log(`JSON validation passed: ${commits.length} commits, ${totalSteps} tables, ${totalChanged} changed, ${totalContext} unchanged, depth ${maximumDepth}`);
+console.log(
+  `JSON validation passed: ${commits.length} commits, ${totalSteps} tables, ${totalChanged} changed, `
+  + `${totalContext} unchanged, depth ${maximumDepth}, ${totalRootSections} root sections `
+  + `(${totalFlowSections} flows, ${totalStandaloneSections} standalone)`
+);
+
+function validateRootSectionHeadings(steps, location) {
+  const starts = [];
+  steps.forEach((step, index) => {
+    assertObject(step, `${location}[${index}]`);
+    if (index === 0 || step.connectFromPrevious === false) starts.push(index);
+  });
+
+  let flows = 0;
+  let standalone = 0;
+  const startIndexes = new Set(starts);
+
+  starts.forEach((startIndex, sectionIndex) => {
+    const endIndex = starts[sectionIndex + 1] ?? steps.length;
+    const startStep = steps[startIndex];
+    const startLocation = `${location}[${startIndex}]`;
+    const sectionSteps = steps.slice(startIndex, endIndex);
+    const isFlow = sectionSteps.length > 1 || sectionSteps.some(hasDisplayedCalls);
+
+    requireText(startStep.flowTitle, `${startLocation}.flowTitle`);
+    if (isFlow) {
+      requireText(startStep.flowDescription, `${startLocation}.flowDescription`);
+      flows += 1;
+    } else {
+      if (startStep.flowDescription !== undefined && String(startStep.flowDescription).trim() !== "") {
+        fail(`${startLocation}.flowDescription`, "単独テーブルではflowDescriptionを指定しないでください");
+      }
+      standalone += 1;
+    }
+  });
+
+  steps.forEach((step, index) => {
+    if (startIndexes.has(index)) return;
+    if (step.flowTitle !== undefined) {
+      fail(`${location}[${index}].flowTitle`, "flowTitleは第1階層のまとまりを開始するステップだけに指定してください");
+    }
+    if (step.flowDescription !== undefined) {
+      fail(`${location}[${index}].flowDescription`, "flowDescriptionは第1階層のまとまりを開始するステップだけに指定してください");
+    }
+  });
+
+  return { total: starts.length, flows, standalone };
+}
+
+function hasDisplayedCalls(step) {
+  return Array.isArray(step.calls)
+    && step.calls.some((call) => call && typeof call === "object" && Array.isArray(call.steps) && call.steps.length > 0);
+}
+
+function runRootSectionSelfTest() {
+  const valid = [
+    {
+      flowTitle: "注文登録フロー",
+      flowDescription: "注文を受け付けてから保存結果を返すまでを示す。",
+      calls: [{ steps: [{}] }]
+    },
+    { calls: [] },
+    {
+      flowTitle: "ログ設定",
+      connectFromPrevious: false,
+      calls: []
+    }
+  ];
+  const counts = validateRootSectionHeadings(valid, "steps");
+  if (counts.total !== 2 || counts.flows !== 1 || counts.standalone !== 1) {
+    throw new Error("Root section self-test failed: フローと単独テーブルを正しく分類できませんでした");
+  }
+
+  const missingTitle = structuredClone(valid);
+  delete missingTitle[0].flowTitle;
+  expectRootSectionFailure("開始タイトルの欠落", missingTitle);
+
+  const missingDescription = structuredClone(valid);
+  delete missingDescription[0].flowDescription;
+  expectRootSectionFailure("処理フロー説明の欠落", missingDescription);
+
+  const standaloneDescription = structuredClone(valid);
+  standaloneDescription[2].flowDescription = "単独テーブルには表示しない説明。";
+  expectRootSectionFailure("単独テーブルの不要な説明", standaloneDescription);
+
+  const titleOnContinuation = structuredClone(valid);
+  titleOnContinuation[1].flowTitle = "後続テーブルの誤ったタイトル";
+  expectRootSectionFailure("後続テーブルのタイトル", titleOnContinuation);
+
+  console.log("Root section self-test passed: flow titles, flow descriptions, standalone titles, section boundaries");
+}
+
+function expectRootSectionFailure(label, steps) {
+  try {
+    validateRootSectionHeadings(steps, "steps");
+  } catch {
+    return;
+  }
+  throw new Error(`Root section self-test failed: ${label}を検出できませんでした`);
+}
 
 function fail(location, message) {
   throw new Error(`${location}: ${message}`);
