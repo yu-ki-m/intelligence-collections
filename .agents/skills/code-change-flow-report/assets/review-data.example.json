@@ -1,0 +1,185 @@
+{
+  "title": "コード変更比較表",
+  "commits": [
+    {
+      "hash": "4e91c2a",
+      "message": "注文状態を保存対象へ追加",
+      "author": "Yuki",
+      "committedAt": "2026-09-12 15:40",
+      "steps": [
+        {
+          "filePath": "src/main/java/example/OrderController.java",
+          "startLine": 18,
+          "endLine": 22,
+          "language": "java",
+          "beforeCode": "@PostMapping(\"/orders\")\npublic ResponseEntity<OrderResponse> create(@RequestBody OrderRequest request) {\n    OrderResponse response = orderService.create(request);",
+          "afterCode": "@PostMapping(\"/orders\")\npublic ResponseEntity<OrderResponse> create(@RequestBody OrderRequest request) {\n    OrderResponse response = orderService.create(request);",
+          "overview": "OrderControllerは注文登録のHTTPリクエストを受け取り、注文データをOrderServiceへ渡す入口である。",
+          "reason": "変更なし",
+          "specification": "この処理は、API利用者が送信した注文を登録処理へ渡し、登録結果が確定するまで応答を保留する入口である。OrderControllerがOrderServiceの完了を待つため、保存前の注文を成功として返さない。例えば、保存処理が例外で終了した場合、OrderControllerはHTTP 201を返さず、既存の例外処理へ制御を渡す。",
+          "remarks": "Controllerとは、この処理ではHTTPリクエストをJavaメソッドへ受け渡すクラスを指す。OrderRequestは、API利用者が送信した注文データを保持するオブジェクトである。",
+          "calls": [
+            {
+              "steps": [
+                {
+                  "filePath": "src/main/java/example/OrderService.java",
+                  "startLine": 42,
+                  "endLine": 48,
+                  "language": "java",
+                  "beforeCode": "public OrderResponse create(OrderRequest request) {\n    Order order = mapper.toEntity(request);\n    order.initializeStatus();\n    SavedOrder savedOrder = repository.save(order);",
+                  "afterCode": "public OrderResponse create(OrderRequest request) {\n    Order order = mapper.toEntity(request);\n    order.initializeStatus();\n    SavedOrder savedOrder = repository.save(order);",
+                  "overview": "OrderServiceは注文データを保存用のOrderへ変換し、新規注文の初期状態を設定してOrderRepositoryへ渡す。",
+                  "reason": "変更なし",
+                  "specification": "この処理は、APIから受け取った注文を保存可能な形式へ変換し、新規注文を「受付済み」として保存処理へ渡す。注文状態とは、注文が受付、出荷、完了などのどの段階にあるかを表す値である。OrderServiceが保存前にRECEIVEDを設定するため、データベースへ登録された時点で注文は受付済みになる。例えば、注文IDが1001の注文を登録直後に照会するとstatusはRECEIVEDとなり、後続の出荷処理はその注文を処理対象として判定できる。",
+                  "remarks": "Serviceとは、この処理では注文登録の手順を制御するクラスを指す。RECEIVEDは、システムが注文を受け付けた直後を表す状態である。",
+                  "calls": [
+                    {
+                      "steps": [
+                        {
+                          "filePath": "src/main/java/example/OrderRepository.java",
+                          "startLine": 30,
+                          "endLine": 36,
+                          "language": "java",
+                          "beforeCode": "public SavedOrder save(Order order) {\n    int updatedRows = jdbcTemplate.update(INSERT_SQL, order.getId());",
+                          "afterCode": "public SavedOrder save(Order order) {\n    int updatedRows = jdbcTemplate.update(\n        INSERT_SQL, order.getId(), order.getStatus());",
+                          "overview": "OrderRepositoryは注文状態をINSERT文の引数へ追加した。これにより、Orderが保持するRECEIVEDを注文レコードへ保存する。",
+                          "reason": "変更前のINSERT文は注文IDだけを渡していたため、データベースは注文状態を保存できなかった。OrderRepositoryがorder.getStatus()を追加すると、INSERT文は注文IDと注文状態の両方を受け取る。",
+                          "specification": "この処理は、注文を識別するIDと現在の処理段階を同じデータベース行へ保存し、注文を再取得した後も状態を判定できるようにする。OrderRepositoryがIDと状態を1回のINSERTへ渡すため、IDだけが保存されて状態が欠ける状況を防ぐ。例えば、IDが1001で状態がRECEIVEDの注文を保存すると、注文テーブルの同じ行へ1001とRECEIVEDが記録される。",
+                          "remarks": "Repositoryとは、この処理ではJavaオブジェクトをデータベースへ保存するクラスを指す。INSERT文は、データベースへ新しい行を追加するSQL文である。",
+                          "calls": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "filePath": "src/main/java/example/OrderService.java",
+                  "startLine": 50,
+                  "endLine": 52,
+                  "language": "java",
+                  "beforeCode": "return mapper.toResponse(savedOrder);\n}",
+                  "afterCode": "return mapper.toResponse(savedOrder);\n}",
+                  "overview": "OrderServiceは保存結果をAPI用のOrderResponseへ変換してOrderControllerへ返す。",
+                  "reason": "変更なし",
+                  "specification": "この処理は、データベース保存用の結果をAPI利用者へ返せる形式へ変換する。保存結果とAPIレスポンスは用途が異なるため、OrderServiceは内部項目をそのまま公開せず、OrderResponseに定義された項目だけを返す。例えば、SavedOrderが注文IDと状態を保持する場合、API利用者はOrderResponseを通じて公開対象の注文IDと状態を受け取る。",
+                  "remarks": "OrderResponseは、注文登録APIが利用者へ返す項目を保持するオブジェクトである。mapperは、保存結果の型をAPIレスポンスの型へ変換する処理を指す。",
+                  "calls": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "filePath": "src/main/java/example/OrderController.java",
+          "startLine": 24,
+          "endLine": 25,
+          "language": "java",
+          "beforeCode": "return ResponseEntity.status(HttpStatus.CREATED).body(response);\n}",
+          "afterCode": "return ResponseEntity.status(HttpStatus.CREATED).body(response);\n}",
+          "overview": "OrderControllerはOrderServiceの登録結果をHTTP 201のレスポンスとしてAPI利用者へ返す。",
+          "reason": "変更なし",
+          "specification": "この処理は、注文という新しいデータが作成されたことをHTTPステータス201でAPI利用者へ通知し、作成結果をレスポンス本文で返す。ステータスと本文を同時に返すため、API利用者は登録の成否と登録された注文内容を1回の応答で確認できる。例えば、注文IDが1001として登録された場合、応答は201と注文ID1001を含む本文を返す。",
+          "remarks": "HTTP 201 Createdは、サーバーが新しいリソースを作成したことを表すステータスである。この処理では、新しい注文の登録成功を表す。",
+          "calls": []
+        }
+      ]
+    },
+    {
+      "hash": "9ab4e70",
+      "message": "監査ログに注文IDを追加",
+      "author": "Yuki",
+      "committedAt": "2026-09-12 16:10",
+      "steps": [
+        {
+          "filePath": "src/main/java/example/OrderController.java",
+          "startLine": 18,
+          "endLine": 22,
+          "language": "java",
+          "beforeCode": "@PostMapping(\"/orders\")\npublic ResponseEntity<OrderResponse> create(@RequestBody OrderRequest request) {\n    OrderResponse response = orderService.create(request);",
+          "afterCode": "@PostMapping(\"/orders\")\npublic ResponseEntity<OrderResponse> create(@RequestBody OrderRequest request) {\n    OrderResponse response = orderService.create(request);",
+          "overview": "OrderControllerは注文登録のHTTPリクエストを受け取り、注文データをOrderServiceへ渡す入口である。",
+          "reason": "変更なし",
+          "specification": "この処理は、API利用者の注文を登録フローへ渡し、保存と監査記録が完了するまで成功応答を確定しない入口である。OrderControllerがOrderServiceの完了を待つため、監査記録より先に利用者へ成功を通知しない。例えば、保存処理が失敗した場合、後続の監査ログ処理とHTTP 201の応答は実行されない。",
+          "remarks": "Controllerとは、この処理ではHTTPリクエストをJavaメソッドへ受け渡すクラスを指す。OrderRequestは、API利用者が送信した注文データを保持するオブジェクトである。",
+          "calls": [
+            {
+              "steps": [
+                {
+                  "filePath": "src/main/java/example/OrderService.java",
+                  "startLine": 55,
+                  "endLine": 55,
+                  "language": "java",
+                  "beforeCode": "auditLogger.created(savedOrder);",
+                  "afterCode": "auditLogger.created(savedOrder);",
+                  "overview": "OrderServiceは保存済み注文をAuditLoggerへ渡し、注文登録の監査記録を開始する。",
+                  "reason": "変更なし",
+                  "specification": "この処理は、保存に成功した注文だけを監査記録の対象にし、存在しない注文の成功ログが残ることを防ぐ。OrderServiceが保存結果を受け取った後でAuditLoggerへ渡すため、監査ログに記録する注文IDはデータベースへ保存されたIDと一致する。例えば、注文ID1001の保存が成功した場合だけ1001の監査ログを記録し、保存が例外で終了した場合は成功ログを記録しない。",
+                  "remarks": "監査ログとは、誰がいつどの業務操作を行ったかを後から確認するための記録である。この例では、注文登録が成功した事実と注文IDを記録する。",
+                  "calls": [
+                    {
+                      "steps": [
+                        {
+                          "filePath": "src/main/java/example/AuditLogger.java",
+                          "startLine": 20,
+                          "endLine": 24,
+                          "language": "java",
+                          "beforeCode": "log.info(\"order created\");",
+                          "afterCode": "log.info(\"order created: {}\", savedOrder.getId());",
+                          "overview": "AuditLoggerは、注文登録ログへ保存済み注文IDを追加した。例えば、IDが1001の注文を保存した場合、ログにはorder created: 1001と出力する。",
+                          "reason": "変更前のログは固定文だけを出力していたため、複数の注文登録が続くと各ログがどの注文を表すか判定できなかった。AuditLoggerが注文IDを出力すると、調査担当者はログと注文レコードをIDで照合できる。",
+                          "specification": "この処理は、注文登録の記録と実際の注文を同じIDで結び付け、調査担当者が対象注文を特定できるようにする。AuditLoggerが保存済み注文からIDを取得してログ本文へ埋め込むため、固定文だけのログとは異なり、各記録がどの注文を表すか判別できる。例えば、注文ID1001の登録後に障害が起きた場合、調査担当者はログから1001を検索して該当する登録記録を確認できる。",
+                          "remarks": "プレースホルダーとは、ログ出力時に実際の値へ置き換わる{}の部分を指す。ログには注文IDだけを記録し、氏名や住所などの個人情報を追加しない。",
+                          "calls": []
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "filePath": "src/main/java/example/OrderService.java",
+                  "startLine": 57,
+                  "endLine": 58,
+                  "language": "java",
+                  "beforeCode": "return mapper.toResponse(savedOrder);\n}",
+                  "afterCode": "return mapper.toResponse(savedOrder);\n}",
+                  "overview": "OrderServiceは監査ログの記録後、保存結果をAPI用のOrderResponseへ変換してOrderControllerへ返す。",
+                  "reason": "変更なし",
+                  "specification": "この処理は、監査記録が完了した保存結果をAPIレスポンス用の形式へ変換し、呼び出し元へ返す。OrderServiceが監査処理の後でレスポンスを作るため、通常経路では成功応答より前に監査ログが記録される。例えば、注文ID1001の監査ログが正常に記録されると、OrderServiceは同じ注文の公開項目を含むOrderResponseをOrderControllerへ返す。",
+                  "remarks": "この表はAuditLoggerの呼び出し元と同じ2段目に配置する。この配置によって、監査ログから戻った後でOrderServiceの処理が続くことを示す。",
+                  "calls": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "filePath": "src/main/java/example/OrderController.java",
+          "startLine": 24,
+          "endLine": 25,
+          "language": "java",
+          "beforeCode": "return ResponseEntity.status(HttpStatus.CREATED).body(response);\n}",
+          "afterCode": "return ResponseEntity.status(HttpStatus.CREATED).body(response);\n}",
+          "overview": "OrderControllerは監査ログ記録後の注文結果をHTTP 201のレスポンスとしてAPI利用者へ返す。",
+          "reason": "変更なし",
+          "specification": "この処理は、保存と監査記録を終えた注文だけを登録成功としてAPI利用者へ返す。OrderControllerがOrderServiceの完了後にHTTP 201を返すため、利用者が成功応答を受け取った時点では通常経路の保存と監査記録が完了している。例えば、注文ID1001の登録が完了すると、利用者は201と注文ID1001を含む本文を受け取る。",
+          "remarks": "HTTP 201 Createdは、サーバーが新しいリソースを作成したことを表すステータスである。このレスポンス処理は監査ログの内容をレスポンス本文へ追加しない。",
+          "calls": []
+        },
+        {
+          "filePath": "src/main/resources/logback-spring.xml",
+          "startLine": 12,
+          "endLine": 14,
+          "language": "xml",
+          "beforeCode": "<logger name=\"example.AuditLogger\" level=\"WARN\" />",
+          "afterCode": "<logger name=\"example.AuditLogger\" level=\"INFO\" />",
+          "overview": "logback-spring.xmlは、AuditLoggerの出力レベルをWARNからINFOへ変更した。ログレベルは、どの重要度以上のログを出力するかを指定する値である。",
+          "reason": "AuditLoggerは注文登録をINFOとして記録するが、変更前のWARN設定はINFOを出力対象から除外していた。LogbackがINFOを出力対象にすると、AuditLoggerが生成した注文ID付きログを実行環境へ記録できる。",
+          "specification": "この設定は、注文登録の監査ログを実行環境へ実際に残し、調査担当者が後から検索できる状態にする。ログレベルとは、記録対象にするログの重要度を選ぶ基準であり、INFOを許可するとAuditLoggerの注文登録記録が除外されなくなる。例えば、注文ID1001を登録するとorder created: 1001がログへ残り、調査担当者は1001を検索条件として登録時刻を確認できる。",
+          "remarks": "この設定ファイルはOrderControllerから同期的に呼び出される処理ではない。そのため、この表を独立した1段目として表示し、直前のControllerフローとは線で接続しない。",
+          "connectFromPrevious": false,
+          "calls": []
+        }
+      ]
+    }
+  ]
+}
