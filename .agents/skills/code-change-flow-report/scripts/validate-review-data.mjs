@@ -10,6 +10,16 @@ if (inputPath === "--self-test-root-sections") {
   process.exit(0);
 }
 
+if (inputPath === "--self-test-specification") {
+  runSpecificationSelfTest();
+  process.exit(0);
+}
+
+if (inputPath === "--self-test-explanation") {
+  runExplanationSelfTest();
+  process.exit(0);
+}
+
 if (!inputPath) {
   console.error("Usage: node validate-review-data.mjs <review-data.json>");
   process.exit(1);
@@ -40,10 +50,7 @@ commits.forEach((commit, commitIndex) => {
   assertObject(commit, commitLocation);
   requireText(commit.hash, `${commitLocation}.hash`);
   requireText(commit.message, `${commitLocation}.message`);
-  requireText(commit.overview, `${commitLocation}.overview`);
-  if (!commit.overview.includes("例えば")) {
-    fail(`${commitLocation}.overview`, "変更全体の意味を説明した後に「例えば」で具体的な結果を示してください");
-  }
+  validateCommitOverview(commit.overview, `${commitLocation}.overview`);
   assertArray(commit.steps, `${commitLocation}.steps`);
   if (commit.steps.length === 0) fail(`${commitLocation}.steps`, "1件以上のステップが必要です");
   const rootSectionCounts = validateRootSectionHeadings(commit.steps, `${commitLocation}.steps`);
@@ -76,19 +83,20 @@ commits.forEach((commit, commitIndex) => {
       if (step.beforeCode === "" && step.afterCode === "") {
         fail(stepLocation, "beforeCodeとafterCodeを両方とも空にはできません");
       }
+      const displayedCode = step.afterCode !== "" ? step.afterCode : step.beforeCode;
+      const displayedLineCount = countCodeLines(displayedCode);
+      const locationLineCount = step.endLine - step.startLine + 1;
+      if (locationLineCount !== displayedLineCount) {
+        fail(
+          `${stepLocation}.startLine/endLine`,
+          `表示範囲は${locationLineCount}行ですが、表示基準側のコードは${displayedLineCount}行です`
+        );
+      }
       requireText(step.overview, `${stepLocation}.overview`);
       requireText(step.reason, `${stepLocation}.reason`);
-      requireText(step.specification, `${stepLocation}.specification`);
+      validateSpecification(step.specification, `${stepLocation}.specification`);
       requireText(step.remarks, `${stepLocation}.remarks`);
       assertArray(step.calls, `${stepLocation}.calls`);
-
-      const firstSpecificationSentence = step.specification.split("。")[0];
-      if (/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\([^)]*\)/.test(firstSpecificationSentence)) {
-        fail(`${stepLocation}.specification`, "最初の文ではメソッドの呼び出し順ではなく、処理が持つ意味を説明してください");
-      }
-      if (!step.specification.includes("例えば")) {
-        fail(`${stepLocation}.specification`, "意味の説明後に「例えば」で具体的な入力と結果を示してください");
-      }
 
       if (step.connectFromPrevious !== undefined) {
         if (typeof step.connectFromPrevious !== "boolean") {
@@ -146,6 +154,99 @@ console.log(
   + `${totalContext} unchanged, depth ${maximumDepth}, ${totalRootSections} root sections `
   + `(${totalFlowSections} flows, ${totalStandaloneSections} standalone)`
 );
+console.log(`Code location structure passed: ${totalSteps} tables`);
+
+function countCodeLines(code) {
+  const normalized = String(code).replace(/\r\n?/g, "\n").replace(/\n$/, "");
+  return normalized.split("\n").length;
+}
+
+function validateCommitOverview(value, location) {
+  requireText(value, location);
+}
+
+function validateSpecification(value, location) {
+  assertObject(value, location);
+  requireText(value.summary, `${location}.summary`);
+  const summarySentences = String(value.summary).split("。").filter((sentence) => sentence.trim() !== "");
+  if (summarySentences.length < 1 || summarySentences.length > 2) {
+    fail(`${location}.summary`, "処理の意味を1〜2文で説明してください");
+  }
+  if (/[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\s*\([^)]*\)/.test(summarySentences[0])) {
+    fail(`${location}.summary`, "最初の文ではメソッドの呼び出し順ではなく、処理が持つ意味を説明してください");
+  }
+
+  assertArray(value.steps, `${location}.steps`);
+  if (value.steps.length < 2) {
+    fail(`${location}.steps`, "番号付きで説明する処理手順を2件以上指定してください");
+  }
+  value.steps.forEach((step, index) => {
+    requireText(step, `${location}.steps[${index}]`);
+    if (/^\s*\d+[.)．）]\s*/.test(step)) {
+      fail(`${location}.steps[${index}]`, "番号はHTMLが付けるため、手順本文へ番号を含めないでください");
+    }
+  });
+
+  if (value.example !== undefined) {
+    requireText(value.example, `${location}.example`);
+  }
+}
+
+function runExplanationSelfTest() {
+  validateCommitOverview(
+    "このコミットは注文状態を保存対象へ追加し、後続処理が受付済み注文を識別できるようにする。変更前は状態が保存されず、変更後は注文IDと状態が同じレコードへ保存される。",
+    "overview"
+  );
+
+  try {
+    validateCommitOverview("", "overview");
+  } catch {
+    console.log("Explanation input self-test passed: non-empty overview, no required introductory phrase");
+    return;
+  }
+  throw new Error("Explanation input self-test failed: 空のコミット概要を検出できませんでした");
+}
+
+function runSpecificationSelfTest() {
+  const valid = {
+    summary: "この処理は、登録結果を利用者へ返す。",
+    steps: [
+      "ControllerがServiceから登録結果を受け取る。",
+      "Controllerが登録結果をHTTPレスポンスへ設定する。"
+    ],
+    example: "注文ID1001を登録すると、レスポンスが1001を返す。"
+  };
+  validateSpecification(valid, "specification");
+
+  const withoutExample = structuredClone(valid);
+  delete withoutExample.example;
+  validateSpecification(withoutExample, "specification");
+
+  expectSpecificationFailure("旧文字列形式", "旧形式の処理仕様");
+
+  const oneStep = structuredClone(valid);
+  oneStep.steps = oneStep.steps.slice(0, 1);
+  expectSpecificationFailure("手順不足", oneStep);
+
+  const prefixedStep = structuredClone(valid);
+  prefixedStep.steps[0] = `1. ${prefixedStep.steps[0]}`;
+  expectSpecificationFailure("本文内の重複番号", prefixedStep);
+
+  const emptyExample = structuredClone(valid);
+  emptyExample.example = "";
+  expectSpecificationFailure("空の具体例", emptyExample);
+
+  console.log("Specification structure self-test passed: summary, numbered steps, optional concrete example without a required introductory phrase, invalid formats");
+}
+
+function expectSpecificationFailure(label, value) {
+  try {
+    validateSpecification(value, "specification");
+  } catch {
+    return;
+  }
+  throw new Error(`Specification structure self-test failed: ${label}を検出できませんでした`);
+}
 
 function validateRootSectionHeadings(steps, location) {
   const starts = [];

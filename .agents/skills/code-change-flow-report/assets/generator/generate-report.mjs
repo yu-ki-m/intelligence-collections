@@ -6,7 +6,7 @@ const MAX_LEVELS = 10_000;
 const INDENT_PX = 64;
 const PRINT_INDENT_MM = 12;
 const THEME = "github-light";
-const TEMPLATE_VERSION = "2026.09.12.14";
+const TEMPLATE_VERSION = "2026.09.13.3";
 
 const [inputPath, outputPath] = process.argv.slice(2);
 
@@ -368,7 +368,7 @@ function renderStep(item, commitIndex, highlighterInstance, languages) {
       <div class="details">
         <section class="detail"><h3 class="detail-title">概説</h3><p class="detail-body">${formatProse(step.overview, "{変更内容を1～2文で記載}")}</p></section>
         <section class="detail"><h3 class="detail-title">変更理由</h3><p class="detail-body">${formatProse(step.reason, "{なぜ変更したか}")}</p></section>
-        <section class="detail"><h3 class="detail-title">処理仕様</h3><p class="detail-body">${formatProse(step.specification, "{変更後どう動くか}")}</p></section>
+        <section class="detail"><h3 class="detail-title">処理仕様</h3>${renderSpecification(step.specification)}</section>
       </div>
     </section>
     <section class="column">
@@ -381,11 +381,27 @@ function renderStep(item, commitIndex, highlighterInstance, languages) {
     </section>
     <section class="column">
       <h2 class="column-title">備考</h2>
-      <div class="remarks"><p class="remarks-body">${formatProse(step.remarks, "{補足事項があれば記載}")}</p></div>
+      <div class="remarks"><p class="remarks-body">${formatProse(step.remarks, "{補足事項、懸念点、バグ、考慮漏れがあれば記載}")}</p></div>
     </section>
     </div>
   </div>
 </section>`;
+}
+
+function renderSpecification(value) {
+  const specification = value && typeof value === "object" && !Array.isArray(value) ? value : {};
+  const steps = Array.isArray(specification.steps) && specification.steps.length > 0
+    ? specification.steps
+    : ["{手順1を記載}", "{手順2を記載}"];
+  const renderedSteps = steps
+    .map((step) => `<li class="specification-step">${formatProse(step, "{手順を記載}")}</li>`)
+    .join("");
+  const example = optionalString(specification.example);
+  const renderedExample = example
+    ? `<p class="specification-example">${formatProse(example, "")}</p>`
+    : "";
+
+  return `<div class="detail-body specification-body"><p class="specification-summary">${formatProse(specification.summary, "{変更後どう動くか}")}</p><ol class="specification-steps">${renderedSteps}</ol>${renderedExample}</div>`;
 }
 
 function renderConnector(previous, current) {
@@ -578,6 +594,12 @@ function renderDocument({ title, maxDepth, renderedCommits }) {
     .detail:last-child{max-height:536px;overflow-y:auto;border-bottom:0;scrollbar-color:#aeb8c5 transparent;scrollbar-gutter:stable;scrollbar-width:thin}
     .detail-title{margin:0 0 1px;color:var(--muted);font-size:12px;font-weight:600;line-height:1.4}
     .detail-body{margin:0;padding-left:16px;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+    .specification-body{white-space:normal}
+    .specification-summary,.specification-example{margin:0;white-space:pre-wrap}
+    .specification-steps{margin:5px 0;padding-left:25px;list-style:decimal}
+    .specification-step{margin:0 0 4px;padding-left:2px;white-space:pre-wrap}
+    .specification-step:last-child{margin-bottom:0}
+    .specification-step::marker{color:#475467;font-weight:600}
     .remarks{align-self:start;padding:6px 10px;background:var(--paper-soft)}
     .remarks-body{margin:0;font-size:12px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
     .row-connectors{position:absolute;z-index:0;inset:0;pointer-events:none}

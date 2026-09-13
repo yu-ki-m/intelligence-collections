@@ -2,7 +2,7 @@
 import { readFile } from "node:fs/promises";
 import process from "node:process";
 
-const TEMPLATE_VERSION = "2026.09.12.14";
+const TEMPLATE_VERSION = "2026.09.13.3";
 const [inputPath, outputPath] = process.argv.slice(2);
 
 if (!inputPath || !outputPath) {
@@ -35,7 +35,14 @@ const expectedBreakCount = commits.reduce(
     : 0),
   0
 ) + flattenedSteps.reduce(
-  (total, step) => total + [step.overview, step.reason, step.specification, step.remarks]
+  (total, step) => total + [
+    step.overview,
+    step.reason,
+    step.specification.summary,
+    ...step.specification.steps,
+    step.specification.example,
+    step.remarks
+  ]
     .reduce((count, value) => count + countMatches(String(value), /。[ \t]*(?=\S)/g), 0),
   0
 );
@@ -59,6 +66,8 @@ requireText(".root-section-description{max-width:1200px;margin:3px 0 0", "処理
 requireText(".review-unit{margin-left:var(--print-offset);border-radius:0;box-shadow:none}", "印刷時のカード装飾解除");
 requireText(".detail:last-child{max-height:536px;overflow-y:auto", "処理仕様の高さ上限とスクロール");
 requireText(".detail:last-child{max-height:none;overflow:visible", "印刷時の処理仕様展開");
+requireText(".specification-steps{margin:5px 0;padding-left:25px;list-style:decimal}", "処理仕様の番号付き手順");
+requireText(".specification-step::marker{color:#475467;font-weight:600}", "処理手順の番号表示");
 requireText("--diff-remove:#ffebe9", "削除行の薄い赤色");
 requireText(".editor .shiki .diff-line--removed{background:var(--diff-remove)}", "削除行の背景指定");
 requireText('.editor .shiki .diff-line--removed::before{color:#cf222e;content:"-"}', "削除行のマイナス記号");
@@ -89,6 +98,12 @@ requireCount('<h2 class="column-title">変更前</h2>', expectedTableCount, "変
 requireCount('<h2 class="column-title">変更後</h2>', expectedTableCount, "変更後タイトル");
 requireCount('<h2 class="column-title">解説</h2>', expectedTableCount, "解説タイトル");
 requireCount('<h2 class="column-title">備考</h2>', expectedTableCount, "備考タイトル");
+requireCount('<ol class="specification-steps">', expectedTableCount, "処理仕様の番号付き一覧");
+requireCount(
+  '<li class="specification-step">',
+  flattenedSteps.reduce((total, step) => total + step.specification.steps.length, 0),
+  "処理仕様の手順"
+);
 requireCount('<button class="nest-toggle"', expectedToggleCount, "入れ子開閉シェブロン");
 requireCount('<span class="connector-track connector-track--entry"', expectedBranchCount, "各横線へ向かうテーブル間の実線縦区間");
 requireCount('<span class="entry-stem"', expectedBranchCount, "各横線直前の実線縦区間");
@@ -152,6 +167,7 @@ flattenedSteps.forEach((step, index) => {
   }
   const expectedLocation = `<p class="source-location">${escapeHtml(String(step.filePath))}:${escapeHtml(String(step.startLine))}-${escapeHtml(String(step.endLine))}</p>`;
   requireUnitText(unit, expectedLocation, index, "コロン区切りのファイル位置");
+  requireUnitText(unit, renderSpecificationForVerification(step.specification), index, "要点・番号付き手順・具体例で構成した処理仕様");
 
   const hasRenderedDiff = /class="line diff-line diff-line--(?:added|removed)"/.test(unit);
   if (step.beforeCode === step.afterCode && hasRenderedDiff) {
@@ -289,6 +305,16 @@ function escapeHtml(value) {
 
 function formatProseForVerification(value) {
   return escapeHtml(String(value)).replace(/。[ \t]*(?=\S)/g, "。<br>");
+}
+
+function renderSpecificationForVerification(specification) {
+  const steps = specification.steps
+    .map((step) => `<li class="specification-step">${formatProseForVerification(step)}</li>`)
+    .join("");
+  const example = typeof specification.example === "string" && specification.example.trim() !== ""
+    ? `<p class="specification-example">${formatProseForVerification(specification.example)}</p>`
+    : "";
+  return `<div class="detail-body specification-body"><p class="specification-summary">${formatProseForVerification(specification.summary)}</p><ol class="specification-steps">${steps}</ol>${example}</div>`;
 }
 
 function requireText(needle, label) {
