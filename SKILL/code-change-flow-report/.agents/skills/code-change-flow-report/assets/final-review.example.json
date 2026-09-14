@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "reviewerTaskId": "/report/final-review",
+  "status": "passed",
+  "reviewDataSha256": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "outputSha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+  "checks": {
+    "commitTabs": true,
+    "diffColors": true,
+    "connectionLines": true,
+    "independentFlows": true,
+    "nestedToggle": true,
+    "textWrapping": true,
+    "explanationPrompt": true
+  }
+}

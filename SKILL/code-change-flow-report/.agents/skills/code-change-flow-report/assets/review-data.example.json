@@ -4,6 +4,7 @@
     "version": 1,
     "mode": "commit-parallel-independent-verification",
     "workerCapacity": 4,
+    "maxCorrectionRounds": 2,
     "requestedCommitOrder": [
       "4e91c2a",
       "9ab4e70"
