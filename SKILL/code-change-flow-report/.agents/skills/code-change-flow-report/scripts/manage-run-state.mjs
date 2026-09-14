@@ -39,6 +39,12 @@ const MODE = "commit-parallel-independent-verification";
 const DEFAULT_MAX_WORKER_ATTEMPTS = 3;
 const DEFAULT_MAX_CORRECTION_ROUNDS = 2;
 const MAX_LIMIT = 20;
+const WORKER_INVOCATION_CONTRACT_VERSION = 1;
+const WORKER_INVOCATION_CONTRACT = Object.freeze({
+  parentConversationInherited: false,
+  inputMode: "file-paths",
+  responseMode: "artifact-reference"
+});
 const LOCK_TIMEOUT_MS = 30_000;
 const LOCK_POLL_MS = 40;
 const LOCK_HEARTBEAT_MS = 1_000;
@@ -249,6 +255,7 @@ async function initializeRun(planPath, statePath) {
       repositoryPath: plan.repositoryPath,
       reviewDataPath: plan.reviewDataPath,
       outputPath: plan.outputPath,
+      workerInvocationContractVersion: WORKER_INVOCATION_CONTRACT_VERSION,
       workerCapacity: plan.workerCapacity,
       maxWorkerAttempts: plan.maxWorkerAttempts,
       maxCorrectionRounds: plan.maxCorrectionRounds,
@@ -772,6 +779,13 @@ function validateStateShape(state) {
   requireNonEmptyString(state.repositoryPath, "run state.repositoryPath");
   requireNonEmptyString(state.reviewDataPath, "run state.reviewDataPath");
   requireNonEmptyString(state.outputPath, "run state.outputPath");
+  if (state.workerInvocationContractVersion !== undefined) {
+    requireExact(
+      state.workerInvocationContractVersion,
+      WORKER_INVOCATION_CONTRACT_VERSION,
+      "run state.workerInvocationContractVersion"
+    );
+  }
   requireSha256(state.planSha256, "run state.planSha256");
   requireSha256(state.stateIntegritySha256, "run state.stateIntegritySha256");
   requireExact(state.stateIntegritySha256, calculateStateIntegrity(state), "run state integrity SHA-256");
@@ -800,8 +814,20 @@ function validateStateShape(state) {
       taskIds.add(attempt.taskId);
       if (!VALID_ROLES.has(attempt.role)) throw new Error(`invalid task role in run state: ${attempt.role}`);
       requireIntegerRange(attempt.batch, 1, Number.MAX_SAFE_INTEGER, `attempt ${attempt.taskId}.batch`);
+      if (state.workerInvocationContractVersion === WORKER_INVOCATION_CONTRACT_VERSION) {
+        validateWorkerInvocationContract(attempt.invocationContract, `attempt ${attempt.taskId}.invocationContract`);
+      } else if (attempt.invocationContract !== undefined) {
+        validateWorkerInvocationContract(attempt.invocationContract, `attempt ${attempt.taskId}.invocationContract`);
+      }
     });
   });
+}
+
+function validateWorkerInvocationContract(contract, label) {
+  assertObject(contract, label);
+  requireExact(contract.parentConversationInherited, false, `${label}.parentConversationInherited`);
+  requireExact(contract.inputMode, "file-paths", `${label}.inputMode`);
+  requireExact(contract.responseMode, "artifact-reference", `${label}.responseMode`);
 }
 
 function calculateStateIntegrity(state) {
@@ -844,6 +870,7 @@ async function startTask(state, commitHash, role, taskId) {
     inputReviewUnitSha256: currentRevisionAttempt(entry)?.reviewUnitSha256 ?? null,
     issueCount: null,
     reason: null,
+    invocationContract: { ...WORKER_INVOCATION_CONTRACT },
     invalidatedAt: null,
     invalidationReason: null
   });
@@ -1001,6 +1028,14 @@ async function loadAndValidateEvidence(state, entry, attempt, rawPath, expectedO
   requireExact(artifact.sourceKind, entry.sourceKind, "evidence artifact.sourceKind");
   requireExact(artifact.targetRef, entry.targetRef, "evidence artifact.targetRef");
   requireExact(artifact.comparisonBase.toLowerCase(), entry.comparisonBase, "evidence artifact.comparisonBase");
+  if (attempt.invocationContract !== undefined) {
+    validateWorkerInvocationContract(artifact.invocationContract, "evidence artifact.invocationContract");
+    requireExact(
+      sha256Canonical(artifact.invocationContract),
+      sha256Canonical(attempt.invocationContract),
+      "evidence artifact invocation contract"
+    );
+  }
   if (entry.sourceKind === "working-tree") {
     requireExact(
       requireSha256(artifact.snapshotSha256, "evidence artifact.snapshotSha256").toLowerCase(),
@@ -1635,7 +1670,7 @@ function assertInvestigationOverlap(state) {
     if (!batches.has(entry.investigationBatch)) batches.set(entry.investigationBatch, []);
     const first = activeAttempts(entry).find((attempt) => attempt.role === "investigator");
     if (!first || !first.startedAt || !first.finishedAt) {
-      throw new Error(`investigation timing evidence is incomplete for ${entry.commitHash}`);
+      throw new Error(`initial investigation timing evidence is incomplete for ${entry.commitHash}`);
     }
     batches.get(entry.investigationBatch).push({ entry, attempt: first });
   }
@@ -1644,7 +1679,7 @@ function assertInvestigationOverlap(state) {
     const latestStart = Math.max(...members.map(({ attempt }) => Date.parse(attempt.startedAt)));
     const earliestFinish = Math.min(...members.map(({ attempt }) => Date.parse(attempt.finishedAt)));
     if (!Number.isFinite(latestStart) || !Number.isFinite(earliestFinish) || latestStart > earliestFinish) {
-      throw new Error(`investigation batch ${batch} has no actual execution overlap`);
+      throw new Error(`investigation batch ${batch} has no actual overlap between initial investigations`);
     }
   }
 }
@@ -2264,6 +2299,17 @@ async function runSelfTest() {
       commits: sources
     });
     await check("actual Git plan initialized", () => runCli(["init", planPath, statePath]));
+    await check("legacy states remain compatible while new attempts receive the invocation contract", async () => {
+      const legacy = structuredClone(await readState(statePath));
+      delete legacy.workerInvocationContractVersion;
+      await startTask(legacy, hashes[0], "investigator", "/legacy/new-investigator");
+      validateWorkerInvocationContract(
+        legacy.commits[0].attempts[0].invocationContract,
+        "legacy new attempt invocation contract"
+      );
+      sealState(legacy);
+      validateStateShape(legacy);
+    });
 
     await check("expired lease is recovered after its owner process is killed", async () => {
       const lockPath = `${statePath}.lock`;
@@ -2336,6 +2382,15 @@ async function runSelfTest() {
     const invPaths = [join(dataDirectory, "investigation-a.json"), join(dataDirectory, "investigation-b.json")];
     await writeJsonAtomic(invPaths[0], makeInvestigationEvidence("/self/investigator-a-retry", sources[0], digests[0]));
     await writeJsonAtomic(invPaths[1], makeInvestigationEvidence("/self/investigator-b", sources[1], digests[1]));
+    const missingInvocationContractPath = join(dataDirectory, "missing-invocation-contract.json");
+    const missingInvocationContract = makeInvestigationEvidence("/self/investigator-a-retry", sources[0], digests[0]);
+    delete missingInvocationContract.invocationContract;
+    await writeJsonAtomic(missingInvocationContractPath, missingInvocationContract);
+    await reject(
+      "new worker evidence requires the recorded invocation contract",
+      () => runCli(["finish-task", statePath, "/self/investigator-a-retry", "completed", missingInvocationContractPath]),
+      /invocationContract/
+    );
     const badEvidencePath = join(dataDirectory, "bad.json");
     await writeJsonAtomic(badEvidencePath, {});
     await reject(
@@ -2347,6 +2402,31 @@ async function runSelfTest() {
       await runCli(["finish-task", statePath, "/self/investigator-a-retry", "completed", invPaths[0]]);
       await runCli(["finish-task", statePath, "/self/investigator-b", "completed", invPaths[1]]);
     });
+    await check("parallel initial attempts allow isolated timeout recovery", async () => {
+      const probe = structuredClone(await readState(statePath));
+      const initial = probe.commits.map((entry) => entry.attempts.find((attempt) => attempt.role === "investigator"));
+      const retry = probe.commits[0].attempts.find((attempt) => attempt.taskId === "/self/investigator-a-retry");
+      initial[0].startedAt = "2026-01-01T00:00:00.000Z";
+      initial[0].finishedAt = "2026-01-01T00:00:02.000Z";
+      initial[1].startedAt = "2026-01-01T00:00:01.000Z";
+      initial[1].finishedAt = "2026-01-01T00:00:03.000Z";
+      retry.startedAt = "2026-01-01T00:00:04.000Z";
+      retry.finishedAt = "2026-01-01T00:00:05.000Z";
+      assertInvestigationOverlap(probe);
+    });
+    await reject(
+      "sequential initial investigations remain prohibited",
+      async () => {
+        const probe = structuredClone(await readState(statePath));
+        const initial = probe.commits.map((entry) => entry.attempts.find((attempt) => attempt.role === "investigator"));
+        initial[0].startedAt = "2026-01-01T00:00:00.000Z";
+        initial[0].finishedAt = "2026-01-01T00:00:01.000Z";
+        initial[1].startedAt = "2026-01-01T00:00:02.000Z";
+        initial[1].finishedAt = "2026-01-01T00:00:03.000Z";
+        assertInvestigationOverlap(probe);
+      },
+      /initial investigations/
+    );
 
     await check("independent verifier tasks start in a shared batch", async () => {
       await Promise.all([
@@ -2682,6 +2762,7 @@ function makeInvestigationEvidence(taskId, source, digest) {
     targetRef: source.targetRef,
     comparisonBase: source.comparisonBase,
     status: "completed",
+    invocationContract: { ...WORKER_INVOCATION_CONTRACT },
     reviewUnitSha256: digest
   };
 }
@@ -2697,6 +2778,7 @@ function makeVerifierEvidence(taskId, source, digest) {
     comparisonBase: source.comparisonBase,
     status: "passed",
     freshContext: true,
+    invocationContract: { ...WORKER_INVOCATION_CONTRACT },
     issueCount: 0,
     issues: [],
     verifiedReviewUnitSha256: digest
