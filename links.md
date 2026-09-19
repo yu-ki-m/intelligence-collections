@@ -22,6 +22,7 @@
 |  | [trailofbits/skills](https://github.com/trailofbits/skills)<br>⭐ 6,980 | Trail of Bitsが公開するセキュリティ向けSkill／Plugin集。コード監査、差分レビュー、静的解析、Semgrep、依存関係、GitHub Actionsなどを対象とする。 | |
 |  | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)<br>⭐ 128,776 | AIコーディングエージェントが不要な依存関係や抽象化を増やす動作を抑え、既存実装、標準ライブラリ、プラットフォーム標準機能を優先させるルールセット兼Plugin。 | |
 |  | [humanlayer/skills](https://github.com/humanlayer/skills)<br>⭐ 2,971 | Claude Code向けSkill集。図やHTMLで説明する `show-me`、CLAUDE.md改善、React型整理などを収録する。 | |
+|  | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)<br>⭐ 48,400 | コーディングエージェントの回答を、次の行動から始める、手順を番号化する、脱線や不要な前置き・締めを抑えるなど、ADHDに配慮した実行しやすい出力へ整えるSkill／Plugin。 | `/i-have-adhd`（Codexは`$i-have-adhd`）で明示的に有効化。 |
 |  | [saurabhkumar8112/cyclomatic-complexity-skill](https://github.com/saurabhkumar8112/cyclomatic-complexity-skill)<br>⭐ 376 | 関数の循環的複雑度を計測し、ガード節や関数抽出によって複雑なコードをリファクタリングするClaude Skill。 | |
 |  | [multica-ai/andrej-karpathy-skills](https://github.com/multica-ai/andrej-karpathy-skills)<br>⭐ 210,537 | Andrej Karpathy氏の指摘を基に、AIの過剰実装や未確認の思い込みを抑えるCLAUDE.md。 | |
 | 4. 業務・調査・図解向けSkill集 | [Ted0321/kotetsu-work-ai-skills](https://github.com/Ted0321/kotetsu-work-ai-skills)<br>⭐ 55 | 論点整理、調査結果からの示唆抽出、資料レビュー、企業調査、HTMLレポート作成など、業務を進めるための日本語Skill集。 | |
