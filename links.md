@@ -35,6 +35,7 @@
 |  | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill)<br>⭐ 84,776 | AIが生成するWeb UIから、凡庸な配色・レイアウト・装飾を減らすためのデザイン規則を提供する。 | |
 |  | [plannotator/effective-html](https://github.com/plannotator/effective-html)<br>⭐ 2,989 | AIにHTML形式のワイヤーフレーム、プロトタイプ、計画書、図解を生成させるAgent Skill集。 | |
 |  | [mathbullet/skills](https://github.com/mathbullet/skills)<br>⭐ 119 | 日本語説明、出典付き調査、論文解説、HTML図解などの出力規則を定義したAgent Skill集。 | |
+|  | [japanese-tech-writing/SKILL](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)<br>⭐ 2,017 | 日本語の技術文書・書籍原稿向けの文章規範。段落構成、論証の厳密さ、読み手の負荷、LLMらしい空句、翻訳調の比喩、冗長さなどを点検する。 | Unlicense。 |
 | 5. Skillの生成・変換・評価 | [virgiliojr94/book-to-skill](https://github.com/virgiliojr94/book-to-skill)<br>⭐ 28,757 | PDF、EPUB、DOCX、Markdown、HTMLなどの資料を、章別参照、用語集、パターン、チートシートを備えたAgent Skillへ変換する。 | |
 |  | [microsoft/skill-recorder](https://github.com/microsoft/skill-recorder)<br>⭐ 3,856 | 人間の画面操作と任意の音声説明を記録し、GitHub Copilot CLIで手順を復元して、SkillまたはAutomationへ変換する。 | 解析時には記録データがGitHubのクラウドへ送信されるため、機密情報を録画へ含めない。 |
 |  | [microsoft/waza](https://github.com/microsoft/waza)<br>⭐ 1,295 | Agent Skillの評価スイートを作成し、ベンチマーク、採点、モデル比較、評価要件の充足確認を実行するGo製CLI。 | Windowsへ導入: <code>irm https://raw.githubusercontent.com/microsoft/waza/main/install.ps1 \| iex</code><br>雛形作成: <code>waza init my-project</code>、<code>cd my-project</code>、<code>waza new skill my-skill</code>、<code>waza new eval my-skill</code><br>評価・構造検査: <code>waza run my-skill -v</code>、<code>waza check skills/my-skill</code><br>一時的にPATHを追加: <code>$env:Path += ";$env:LOCALAPPDATA\Microsoft\Waza"</code> |
