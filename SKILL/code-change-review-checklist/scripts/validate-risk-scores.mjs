@@ -40,7 +40,7 @@ function selfTest() {
     ["scoreが整数でない", (s) => { s.units[1].score = 6.5; return s; }, false],
     ["不正なcategory", (s) => { s.units[1].category = "その他"; return s; }, false],
     ["reasonが短い", (s) => { s.units[1].reason = "危険"; return s; }, false],
-    ["高リスクなのに確認点がない", (s) => { s.units[1].checkPoints = []; return s; }, false],
+    ["重要度が高いのに確認点がない", (s) => { s.units[1].checkPoints = []; return s; }, false],
     ["備考の指摘に対してscoreが低い", (s) => { s.units[1].score = 4; return s; }, false],
     ["変更なしテーブルのscoreが高い", (s) => { s.units[0].score = 5; return s; }, false],
     ["変更ありなのに文脈カテゴリ", (s) => { s.units[1].category = CONTEXT_CATEGORY; return s; }, false],

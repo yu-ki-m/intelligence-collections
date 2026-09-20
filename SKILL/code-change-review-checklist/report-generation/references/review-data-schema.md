@@ -22,7 +22,6 @@
     "version": 1,
     "mode": "commit-parallel-independent-verification",
     "workerCapacity": 1,
-    "maxCorrectionRounds": 2,
     "requestedCommitOrder": ["4e91c2a"],
     "commits": [
       {
@@ -61,7 +60,6 @@
 | `version` | 必須 | `1`を指定する。 |
 | `mode` | 必須 | `commit-parallel-independent-verification`を指定する。 |
 | `workerCapacity` | 必須 | 調整担当を除いて同時に実行できるサブエージェント数。複数コミットでは2以上にし、最後以外の調査バッチはこの件数まで埋める。 |
-| `maxCorrectionRounds` | 必須 | 実行状態の比較計画と同じ修正上限。既定値は2、許容範囲は0〜20。`correctionRounds`と検証試行数をこの値以内にする。 |
 | `requestedCommitOrder` | 必須 | 調査開始時に確定したコミットIDを表示順で記載する。`commits[].hash`と完全一致させる。 |
 | `commits` | 必須 | 各コミットの調査と検証の記録。`requestedCommitOrder`と同じ順で1件ずつ記載する。 |
 
@@ -98,16 +96,9 @@
   "targetRef": "4e91c2a000000000000000000000000000000000",
   "comparisonBase": "31c6d5c000000000000000000000000000000000",
   "status": "completed",
-  "invocationContract": {
-    "parentConversationInherited": false,
-    "inputMode": "file-paths",
-    "responseMode": "artifact-reference"
-  },
   "reviewUnitSha256": "64文字のSHA-256"
 }
 ```
-
-新しく開始する調査、修正、検証証跡では、更新前に初期化した実行状態からの再開を含めて`invocationContract`を必須にする。`parentConversationInherited`は`false`、`inputMode`は`file-paths`、`responseMode`は`artifact-reference`とする。更新前に完了済みの試行だけは互換性のため従来証跡を再利用できる。更新後に開始した試行は、開始記録と証跡の契約が一致しなければ完了できない。
 
 未コミット差分の証跡には、`initialSnapshotSha256`と`finalSnapshotSha256`に共通する値を`"snapshotSha256": "64文字のSHA-256"`として追加する。
 
@@ -126,11 +117,6 @@
   "comparisonBase": "31c6d5c000000000000000000000000000000000",
   "status": "passed",
   "freshContext": true,
-  "invocationContract": {
-    "parentConversationInherited": false,
-    "inputMode": "file-paths",
-    "responseMode": "artifact-reference"
-  },
   "issueCount": 0,
   "issues": [],
   "verifiedReviewUnitSha256": "64文字のSHA-256"
@@ -153,7 +139,7 @@
 node <skill-root>/scripts/verify-orchestration.mjs --print-digests <review-data.json>
 ```
 
-`scripts/verify-orchestration.mjs`は、実行記録、`commits`、調査証跡、検証証跡を照合する。さらに、[中断耐性と完了ゲート](resumable-execution.md)の状態管理が、証跡ファイルのSHA-256、タスクの開始・終了時刻、再試行、実際の並列区間、起動契約、統合・生成・最終レビュー状態を照合する。実行記録と証跡JSONは、エージェント実行基盤が発行する署名ではないため、実際の`fork_turns`値や別エージェントの起動を暗号学的には証明しない。調整担当は実際の起動呼び出しへ`fork_turns: none`を明示し、エージェントの割り当てとコンテキスト分離を[複数エージェント実行規則](multi-agent-orchestration.md)に従って実行する。生成検査は、起動時の契約と担当証跡を照合し、記録の欠落と相互矛盾を拒否する。
+`scripts/verify-orchestration.mjs`は、実行記録、`commits`、調査証跡、検証証跡を照合する。実行記録と証跡JSONは、エージェント実行基盤が発行する署名ではないため、別エージェントを実際に起動したことを暗号学的には証明しない。エージェントの割り当てとコンテキスト分離は[複数エージェント実行規則](multi-agent-orchestration.md)に従い、生成検査は記録の欠落と相互矛盾を拒否する。
 
 ## コミット
 

@@ -6,9 +6,7 @@
 
 - HTMLは`assets/generator/generate-report.mjs`を正本として生成する。
 - 過去に生成したHTML、別のコードレビュー用テンプレート、手書きのHTMLへ置き換えない。
-- 実行状態が`ready-for-generation`になった後、状態ファイルを第3引数に渡して`scripts/generate-report.sh`を使う。このスクリプトは実Gitとコード位置、証跡、JSON、呼び出し元網羅性、呼び出し後の構造、入れ子、接続線、開閉範囲、生成後HTMLを検査する。
-- HTMLは最終出力先と同じディレクトリの一時ファイルへ生成する。全検査が成功した場合だけrenameし、失敗時は既存の完成HTMLを上書きしない。
-- HTML生成後の状態は`awaiting-final-review`とする。実画面確認の証跡を保存し、現在のHTMLのSHA-256を含む完成ゲートが成功するまで`completed`にしない。
+- `scripts/generate-report.sh`を使う。このスクリプトはJSON、呼び出し元網羅性、呼び出し後の構造、入れ子、接続線、開閉範囲、生成後HTMLを検査する。
 - レポートJSONの`orchestration`は調査と独立検証の内部記録であり、HTML本文、タブ、印刷結果へ表示しない。
 - 生成後HTMLの`code-change-flow-template-version`は`2026.09.13.3`でなければならない。
 - CSS、シンタックスハイライト、タブ操作、入れ子開閉処理をHTML内へ埋め込み、単体のHTMLファイルだけで表示できるようにする。

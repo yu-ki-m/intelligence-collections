@@ -1,6 +1,6 @@
-// code-change-flow-report の review-data.json から、レビュー単位(=HTML上の1テーブル)を列挙する共有モジュール。
-// 列挙順は generate-report.mjs の flattenExecution と同じ「ステップ → その呼び出し先 → 次のステップ」の前順走査で、
-// HTMLの data-flow-index と一致する。
+// review-data.json から、レビュー単位(=レポートHTML上の1テーブル)を列挙する共有モジュール。
+// 列挙順は「ステップ → その呼び出し先 → 次のステップ」の前順走査で、レポートHTMLの data-flow-index と一致する必要がある
+// (build-checklist-report.mjs が、HTML上のテーブル数と位置がこの列挙と合うことを検査する)。
 
 import { readFileSync } from "node:fs";
 

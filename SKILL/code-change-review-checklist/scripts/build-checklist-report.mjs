@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // code-change-flow-report が生成したHTMLに、テーブルごとの「確認済みチェックボックス」と
-// 「リスク点数(0〜10)」、優先度順の確認リストを重ねた別のHTMLを書き出す。元のHTMLは変更しない。
+// 「重要度(0〜10)」、優先度順の確認リストを重ねた別のHTMLを書き出す。元のHTMLは変更しない。
 //
 //   node build-checklist-report.mjs <review-data.json> <risk-scores.json> <base-report.html> <output.html>
 

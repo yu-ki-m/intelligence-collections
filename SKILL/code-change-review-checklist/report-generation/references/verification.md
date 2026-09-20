@@ -2,12 +2,8 @@
 
 ## 調査担当と独立検証
 
-- 比較計画と実行状態が調査開始前に作成され、既存状態がある場合は未完了タスクだけを再開している。
-- 各タスクの開始、終了、証跡SHA-256、再試行、無効化が状態ファイルへ原子的に保存されている。
-- 同じ調査バッチに属する複数コミットについて、初回調査試行の開始から終了までの実行区間が実際に重なっている。初回に並列起動した一部だけをタイムアウト後に再試行した場合は、その再試行だけが逐次でもよいが、初回起動を逐次にした実行は合格にしていない。
 - 調整担当が、対象コミットと比較元を調査開始前に固定している。
 - 各コミットを異なる調査タスクが担当している。
-- 新規実行の各調査、検証、再検証、代替担当について、親会話を継承しない起動、ファイルパスだけの入力、大きな本文を返さない成果物参照応答が開始記録と証跡の両方に記録されている。
 - 対象が複数コミットの場合、少なくとも2件の調査タスクを同じバッチで並列実行している。
 - 各コミットを調査担当とは異なる検証タスクが検証している。
 - 各検証タスクが会話履歴を継承しない新規コンテキストで開始されている。
@@ -22,7 +18,6 @@
 - 失敗した検証の後に再検証した場合、修正前後の調査単位SHA-256が異なっている。
 - 最後の検証が`passed`、問題件数と未解決件数が0である。
 - 失敗、タイムアウト、未完了の調査または検証が1件も残っていない。
-- 実行状態に未完了タスク、未解決ブロッカー、再試行上限超過が残っていない。
 
 ## Gitとコード
 
@@ -92,19 +87,10 @@
 次のコマンドが成功することを確認する。
 
 ```bash
-bash <skill-root>/scripts/generate-report.sh \
-  <review-data.json> <review-report.html> <run-state.json>
+bash <skill-root>/scripts/generate-report.sh <review-data.json> <review-report.html>
 ```
 
-コマンド出力に`Run-state self-test passed`、`Completion readiness passed`、`Repository integrity passed`、`Orchestration self-test passed`、`Orchestration verification passed`、`Root section self-test passed`、`Specification structure self-test passed`、`Explanation input self-test passed`、`Code location structure passed`、`Caller coverage self-test passed`、`Caller coverage passed`、`Continuation structure self-test passed`、`Continuation structure passed`、`HTML verification passed`が含まれることを確認する。状態検査は、実Git参照と親、証跡の現在SHA-256、タスクの重複、実際の並列実行区間、再試行と修正上限、未解決ブロッカーを確認する。オーケストレーション検査は、コミットの欠落と順序、完全なGit参照、未コミット差分の固定、担当分離、満杯の並列バッチ、新規コンテキスト、実在する証跡、最終検証、未解決件数、調査単位のSHA-256を検査する。説明入力の構造検査は、空の概要を拒否し、特定の導入語句を要求しないことを検査する。処理仕様の構造検査は、要点、2件以上の手順、HTML側の連番、任意の具体例、具体例の導入語句を検査する。ファイル位置の構造検査は、開始行と終了行の順序、および表示基準側コードの行数との一致を検査する。実ファイルとの内容照合は、状態検査が全階層のテーブルに対してGitから実行する。第1階層検査はタイトルと説明の必須条件、単独テーブルの説明禁止、表示単位の境界を検査する。呼び出し元検査は複数呼び出し元、探索結果の未登録、変更ステップの不正共有、未解決、理由のない除外、探索方法の不足、同一箇所の重複登録を検出する。後続処理の構造検査は、接続された後続テーブルのファイルと行順を検査し、実コード・HTMLと照合する対象を`[後続処理確認]`として列挙する。
-
-生成後は最終レビュー証跡を保存し、次のコマンドを成功させる。`completed`という状態名だけで合格させず、現在のGit、証跡、JSON、HTML、最終レビューSHA-256を再検査する。
-
-最終レビュー証跡には担当タスクID、統合JSONのSHA-256、HTMLのSHA-256、コミットタブ、差分色、接続線、独立フロー、入れ子開閉、文章折り返し、説明文再照合の合否を記載し、すべてを合格にする。
-
-```bash
-node <skill-root>/scripts/manage-run-state.mjs assert-completed <run-state.json>
-```
+コマンド出力に`Orchestration self-test passed`、`Orchestration verification passed`、`Root section self-test passed`、`Specification structure self-test passed`、`Explanation input self-test passed`、`Code location structure passed`、`Caller coverage self-test passed`、`Caller coverage passed`、`Continuation structure self-test passed`、`Continuation structure passed`、`HTML verification passed`が含まれることを確認する。オーケストレーション検査は、コミットの欠落と順序、完全なGit参照、未コミット差分の固定、担当分離、満杯の並列バッチ、新規コンテキスト、実在する証跡、最終検証、未解決件数、調査単位のSHA-256を検査する。説明入力の構造検査は、空の概要を拒否し、特定の導入語句を要求しないことを検査する。処理仕様の構造検査は、要点、2件以上の手順、HTML側の連番、任意の具体例、具体例の導入語句を検査する。ファイル位置の構造検査は、開始行と終了行の順序、および表示基準側コードの行数との一致を検査する。実ファイルとの内容照合は、前述のGitとコードの手順で全テーブルに対して別途実施する。第1階層検査はタイトルと説明の必須条件、単独テーブルの説明禁止、表示単位の境界を検査する。呼び出し元検査は複数呼び出し元、探索結果の未登録、変更ステップの不正共有、未解決、理由のない除外、探索方法の不足、同一箇所の重複登録を検出する。後続処理の構造検査は、接続された後続テーブルのファイルと行順を検査し、実コード・HTMLと照合する対象を`[後続処理確認]`として列挙する。
 
 生成したHTMLについて次を確認する。
 

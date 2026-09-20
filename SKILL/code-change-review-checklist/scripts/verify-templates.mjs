@@ -21,8 +21,9 @@ const EXAMPLE_DATA = path.join(SKILL_ROOT, "assets", "example", "review-data.exa
 const EXAMPLE_SCORES = path.join(SKILL_ROOT, "assets", "example", "risk-scores.example.json");
 const CATALOG_PATH = path.join(SKILL_ROOT, "assets", "template-catalog.html");
 
-// 全体構造の見本: code-change-flow-report が実際に生成したレポート(フロー・解説・変更前後の比較を含む)と、その採点、チェックリストを重ねた完成形。
-const FIXTURE_DIR = path.join(SKILL_ROOT, "assets", "example", "flow-report");
+// 全体構造の見本: フロー・解説・変更前後の比較を含むレポート(固定のスナップショット)と、その採点、チェックリストを重ねた完成形。
+// このスキルの中だけで完結し、他のスキルやリポジトリのファイルは読まない。
+const FIXTURE_DIR = path.join(SKILL_ROOT, "assets", "example", "full-report");
 const FIXTURE_DATA = path.join(FIXTURE_DIR, "review-data.json");
 const FIXTURE_SCORES = path.join(FIXTURE_DIR, "risk-scores.json");
 const FIXTURE_BASE = path.join(FIXTURE_DIR, "report.html");
@@ -39,9 +40,9 @@ const REPORT_STRUCTURE = {
   "変更前後の比較(差分色)": ["column", "column-title", "editor", "diff-line", "diff-line--added", "diff-line--removed"]
 };
 
-// 元レポート(code-change-flow-report のテンプレート版 2026.09.13.3)の :root。カタログを単体で開いても同じ見た目にするために写している。
+// 元レポート(テンプレート版 2026.09.13.3)の :root。カタログを単体で開いても同じ見た目にするために写している。
 const BASE_ROOT = ":root{color-scheme:light;--canvas:#f3f5f8;--paper:#fff;--paper-soft:#f8fafc;--code-surface:#fbfcfe;--header-bg:#eef2f6;--line:#c8d0da;--line-strong:#96a1af;--ink:#1d2735;--muted:#5f6b7a;--accent:#2563eb;--accent-soft:#edf4ff;--diff-remove:#ffebe9;--diff-add:#dafbe1;--shadow:0 2px 5px rgba(15,23,42,.12),0 12px 28px rgba(15,23,42,.09)}";
-const SOURCE_HEADER_STUB = "<div class=\"source-header\" style=\"display:flex;align-items:center;height:30px;padding:0 8px;border:1px solid var(--line);border-bottom:0;background:var(--paper-soft);font-size:13px\"><code>src/main/java/example/Sample.java:10-12</code></div><pre style=\"margin:0;padding:8px 12px;border:1px solid var(--line);background:var(--code-surface);font-size:12px\">// 実際のレポートでは、ここに解説・変更前後の比較・入れ子の流れが入る(完成形は example/flow-report/report.checklist.html)</pre>";
+const SOURCE_HEADER_STUB = "<div class=\"source-header\" style=\"display:flex;align-items:center;height:30px;padding:0 8px;border:1px solid var(--line);border-bottom:0;background:var(--paper-soft);font-size:13px\"><code>src/main/java/example/Sample.java:10-12</code></div><pre style=\"margin:0;padding:8px 12px;border:1px solid var(--line);background:var(--code-surface);font-size:12px\">// 実際のレポートでは、ここに解説・変更前後の比較・入れ子の流れが入る(完成形は example/full-report/report.checklist.html)</pre>";
 
 const errors = [];
 const fail = (message) => errors.push(message);
@@ -158,7 +159,7 @@ ${styleText()}</style>
 <body>
 <h1>チェックリスト部品カタログ</h1>
 <p class="cat-lead">code-change-review-checklist が元のレポートへ差し込む部品を、全パターン並べた見本。<code>assets/templates/</code> と <code>assets/example/</code> から <code>node scripts/verify-templates.mjs --write-catalog</code> で生成する。手で編集しない。</p>
-<p class="cat-lead"><b>このページは部品(バーとパネル)だけの一覧で、レポート本体の文脈(入れ子の流れ、接続線、解説、変更前後の比較)は含まない。</b>レポート全体にチェックリストを重ねた完成形は <code>assets/example/flow-report/report.checklist.html</code> を開く(<code>code-change-flow-report</code> が実際に生成したレポートを土台にしている)。</p>
+<p class="cat-lead"><b>このページは部品(バーとパネル)だけの一覧で、レポート本体の文脈(入れ子の流れ、接続線、解説、変更前後の比較)は含まない。</b>レポート全体にチェックリストを重ねた完成形は <code>assets/example/full-report/report.checklist.html</code> を開く。</p>
 <p class="cat-lead">実際の出力は、元のレポートに、下のバー(各テーブルの直前)、パネル(コミットタブの直前)、スタイル、スクリプトを差し込んだもの。元のレポートの内容は変更しない。</p>
 <h2>1. 確認パネル(コミットタブの直前)</h2>
 <p class="cat-lead">全テーブルを点数の高い順に並べる。同点はコミット順、テーブルの並び順。</p>
@@ -175,6 +176,22 @@ ${figure(hostile)}
 </body>
 </html>
 `;
+}
+
+// 同梱したレポート生成器(report-generation/)が、チェックリストの対応版と同じテンプレート版を出力することを確認する。
+// 食い違うと、入力が無い時に生成したレポートを build-checklist-report.mjs が拒否する。
+function checkBundledGenerator() {
+  const root = path.join(SKILL_ROOT, "report-generation");
+  const required = ["PROCEDURE.md", "scripts/generate-report.sh", "scripts/verify-orchestration.mjs", "scripts/validate-review-data.mjs", "assets/generator/generate-report.mjs", "assets/generator/package-lock.json", "references/review-data-schema.md", "references/multi-agent-orchestration.md"];
+  for (const relative of required) if (!existsSync(path.join(root, relative))) fail(`同梱のレポート生成器に ${relative} がない(report-generation/)`);
+  if (errors.length > 0) return;
+
+  const generatorVersion = readFileSync(path.join(root, "assets", "generator", "generate-report.mjs"), "utf8").match(/const TEMPLATE_VERSION = "([^"]+)"/)?.[1];
+  const supported = readFileSync(BUILD_SCRIPT, "utf8").match(/const SUPPORTED_TEMPLATE_VERSIONS = \[([^\]]*)\]/)?.[1].match(/"([^"]+)"/g)?.map((value) => value.slice(1, -1)) ?? [];
+  const sampleVersion = readFileSync(FIXTURE_BASE, "utf8").match(/<meta name="code-change-flow-template-version" content="([^"]+)">/)?.[1];
+  if (!generatorVersion) fail("同梱のレポート生成器のテンプレート版を読み取れない");
+  else if (!supported.includes(generatorVersion)) fail(`同梱のレポート生成器のテンプレート版(${generatorVersion})が、build-checklist-report.mjs の対応版(${supported.join(", ")})に含まれない`);
+  if (sampleVersion !== generatorVersion) fail(`full-report/report.html のテンプレート版(${sampleVersion})が同梱のレポート生成器(${generatorVersion})と違う`);
 }
 
 function classCounts(html) {
@@ -219,6 +236,7 @@ function buildFullReportSample() {
 function main() {
   const writeCatalog = process.argv.includes("--write-catalog");
   checkPlaceholders();
+  checkBundledGenerator();
   const { units, scoreByKey } = loadExample();
   if (errors.length === 0) {
     checkCoverage(units, scoreByKey);
@@ -228,7 +246,7 @@ function main() {
   if (errors.length === 0) {
     const outputs = [
       [CATALOG_PATH, renderCatalog(units, scoreByKey), "assets/template-catalog.html"],
-      [FIXTURE_SAMPLE, buildFullReportSample(), "assets/example/flow-report/report.checklist.html"]
+      [FIXTURE_SAMPLE, buildFullReportSample(), "assets/example/full-report/report.checklist.html"]
     ];
     fixtureTables = validateRiskScores(loadJson(FIXTURE_DATA), loadJson(FIXTURE_SCORES)).units.length;
     for (const [filePath, expected, label] of outputs) {

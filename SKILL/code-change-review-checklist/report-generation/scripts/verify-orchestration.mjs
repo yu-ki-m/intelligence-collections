@@ -25,7 +25,7 @@ const MODE = "commit-parallel-independent-verification";
 const SHA256_PATTERN = /^[0-9a-f]{64}$/i;
 const GIT_OBJECT_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
 const DISPLAY_COMMIT_PATTERN = /^[0-9a-f]{7,64}$/i;
-const MAX_ALLOWED_CORRECTION_ROUNDS = 20;
+const MAX_CORRECTION_ROUNDS = 2;
 
 await main();
 
@@ -85,12 +85,7 @@ async function readJson(path) {
 }
 
 async function verifyOrchestration(report, inputPath) {
-  const {
-    reportHashes,
-    orchestration,
-    workerCapacity,
-    maxCorrectionRounds
-  } = validateTopLevel(report);
+  const { reportHashes, orchestration, workerCapacity } = validateTopLevel(report);
   const taskIds = new Set();
   const artifactManifestPaths = new Set();
   const artifactRealPaths = new Set();
@@ -145,10 +140,10 @@ async function verifyOrchestration(report, inputPath) {
     if (entry.verificationAttempts.length === 0) {
       fail(`${location}.verificationAttempts`, "must contain at least one attempt");
     }
-    if (entry.verificationAttempts.length > maxCorrectionRounds + 1) {
+    if (entry.verificationAttempts.length > MAX_CORRECTION_ROUNDS + 1) {
       fail(
         `${location}.verificationAttempts`,
-        `must contain at most ${maxCorrectionRounds + 1} attempts`
+        `must contain at most ${MAX_CORRECTION_ROUNDS + 1} attempts`
       );
     }
     verificationAttemptCount += entry.verificationAttempts.length;
@@ -234,10 +229,10 @@ async function verifyOrchestration(report, inputPath) {
       0,
       `${location}.correctionRounds`
     );
-    if (correctionRounds > maxCorrectionRounds) {
+    if (correctionRounds > MAX_CORRECTION_ROUNDS) {
       fail(
         `${location}.correctionRounds`,
-        `must not exceed configured maxCorrectionRounds ${maxCorrectionRounds}`
+        `must not exceed ${MAX_CORRECTION_ROUNDS}; stop and report unresolved verification`
       );
     }
     if (correctionRounds !== entry.verificationAttempts.length - 1) {
@@ -290,17 +285,6 @@ function validateTopLevel(report) {
     1,
     "root.orchestration.workerCapacity"
   );
-  const maxCorrectionRounds = requireIntegerAtLeast(
-    orchestration.maxCorrectionRounds,
-    0,
-    "root.orchestration.maxCorrectionRounds"
-  );
-  if (maxCorrectionRounds > MAX_ALLOWED_CORRECTION_ROUNDS) {
-    fail(
-      "root.orchestration.maxCorrectionRounds",
-      `must not exceed ${MAX_ALLOWED_CORRECTION_ROUNDS}`
-    );
-  }
 
   assertArray(orchestration.requestedCommitOrder, "root.orchestration.requestedCommitOrder");
   const requestedCommitOrder = orchestration.requestedCommitOrder.map((hash, index) => (
@@ -326,7 +310,7 @@ function validateTopLevel(report) {
     fail("root.orchestration.workerCapacity", "must be at least 2 for multiple commits");
   }
 
-  return { reportHashes, orchestration, workerCapacity, maxCorrectionRounds };
+  return { reportHashes, orchestration, workerCapacity };
 }
 
 function validateSource(entry, reportHash, location) {
@@ -842,27 +826,6 @@ async function runSelfTest() {
       shouldFail: true
     },
     {
-      name: "configured additional correction round",
-      build: () => {
-        const report = makeValidSelfTestReport(1, 1);
-        report.orchestration.maxCorrectionRounds = 3;
-        const entry = report.orchestration.commits[0];
-        const finalDigest = entry.investigation.reviewUnitSha256;
-        entry.verificationAttempts = ["a", "b", "c", finalDigest].map((digest, index) => ({
-          taskId: `verification-configured-${index + 1}`,
-          batch: index + 1,
-          artifactPath: `artifacts/1111111/verification-configured-${index + 1}.json`,
-          status: index === 3 ? "passed" : "failed",
-          freshContext: true,
-          issueCount: index === 3 ? 0 : 1,
-          verifiedReviewUnitSha256: digest.length === 1 ? digest.repeat(64) : digest
-        }));
-        entry.correctionRounds = 3;
-        return report;
-      },
-      shouldFail: false
-    },
-    {
       name: "too many correction rounds",
       build: () => {
         const report = makeValidSelfTestReport(1, 1);
@@ -976,7 +939,6 @@ function makeValidSelfTestReport(commitCount, workerCapacity) {
       version: 1,
       mode: MODE,
       workerCapacity,
-      maxCorrectionRounds: 2,
       requestedCommitOrder: commits.map((commit) => commit.hash),
       commits: entries
     }
@@ -1028,7 +990,6 @@ function makeWorkingTreeSelfTestReport() {
       version: 1,
       mode: MODE,
       workerCapacity: 1,
-      maxCorrectionRounds: 2,
       requestedCommitOrder: ["working-tree"],
       commits: [entry]
     }
