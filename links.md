@@ -45,6 +45,7 @@
 | リンク | 解説 | その他 |
 | --- | --- | --- |
 | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)<br>⭐ 17,100 | 偵察、カバレッジ主導の脆弱性探索、候補検証、機械可読な`findings.json`、独立検証、レポート生成までを行う、多段階セキュリティ監査用Agent Skill。 | `npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit` |
+| [alibaba/open-code-review](https://github.com/alibaba/open-code-review)<br>⭐ 40,020 | Alibaba製のAIコードレビューCLI（`ocr`）。Alibaba社内の公式AIコードレビュー支援ツールをOSS化したもの。対象ファイルの選定、関連ファイルの束ね、ルール照合、指摘位置の補正を決定的な処理で担い、LLMエージェントが行単位のレビューコメントを生成する。 | Alibaba製（Apache-2.0）。導入: <code>npm install -g @alibaba-group/open-code-review</code><br>変更差分をレビュー: <code>ocr review</code> |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)<br>⭐ 92,523 | 要件定義、計画、実装、テスト、レビュー、リリースまでの工程と品質ゲートを、Claude CodeやCodexなどへ守らせる実務向けSkill集。 | |
 | [mattpocock/skills](https://github.com/mattpocock/skills)<br>⭐ 253,825 | `grill-me`や`grill-with-docs`による要件の掘り下げ、用語整理、チケット運用など、開発者が制御権を維持するための小さなSkillを収録する。 | |
 | [trailofbits/skills](https://github.com/trailofbits/skills)<br>⭐ 6,980 | Trail of Bitsが公開するセキュリティ向けSkill／Plugin集。コード監査、差分レビュー、静的解析、Semgrep、依存関係、GitHub Actionsなどを対象とする。 | |
