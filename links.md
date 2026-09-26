@@ -79,6 +79,7 @@
 | [virgiliojr94/book-to-skill](https://github.com/virgiliojr94/book-to-skill)<br>⭐ 28,757 | PDF、EPUB、DOCX、Markdown、HTMLなどの資料を、章別参照、用語集、パターン、チートシートを備えたAgent Skillへ変換する。 | |
 | [microsoft/skill-recorder](https://github.com/microsoft/skill-recorder)<br>⭐ 3,856 | 人間の画面操作と任意の音声説明を記録し、GitHub Copilot CLIで手順を復元して、SkillまたはAutomationへ変換する。 | 解析時には記録データがGitHubのクラウドへ送信されるため、機密情報を録画へ含めない。 |
 | [microsoft/waza](https://github.com/microsoft/waza)<br>⭐ 1,295 | Agent Skillの評価スイートを作成し、ベンチマーク、採点、モデル比較、評価要件の充足確認を実行するGo製CLI。 | Windowsへ導入: <code>irm https://raw.githubusercontent.com/microsoft/waza/main/install.ps1 \| iex</code><br>雛形作成: <code>waza init my-project</code>、<code>cd my-project</code>、<code>waza new skill my-skill</code>、<code>waza new eval my-skill</code><br>評価・構造検査: <code>waza run my-skill -v</code>、<code>waza check skills/my-skill</code><br>一時的にPATHを追加: <code>$env:Path += ";$env:LOCALAPPDATA\Microsoft\Waza"</code> |
+| [microsoft/SkillOpt](https://github.com/microsoft/SkillOpt)<br>⭐ 17,387 | モデルの重みを変えずに、Skill文書そのものを学習対象として最適化するPython製フレームワーク。実行結果の採点を基に追加・削除・置換の編集を提案し、検証スコアが改善した編集だけを採用して、配布可能な`best_skill.md`を出力する。 | MIT。導入: <code>pip install skillopt</code><br>過去のセッションから夜間にSkillを改善する`skillopt-sleep` CLIも同梱（Claude Code、Codex、Copilot向けの連携ファイルはリポジトリ側にある）。 |
 
 ## 6. Cookbook・実装例
 
