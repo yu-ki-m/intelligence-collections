@@ -46,6 +46,7 @@
 | --- | --- | --- |
 | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)<br>⭐ 17,100 | 偵察、カバレッジ主導の脆弱性探索、候補検証、機械可読な`findings.json`、独立検証、レポート生成までを行う、多段階セキュリティ監査用Agent Skill。 | `npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit` |
 | [alibaba/open-code-review](https://github.com/alibaba/open-code-review)<br>⭐ 40,020 | Alibaba製のAIコードレビューCLI（`ocr`）。Alibaba社内の公式AIコードレビュー支援ツールをOSS化したもの。対象ファイルの選定、関連ファイルの束ね、ルール照合、指摘位置の補正を決定的な処理で担い、LLMエージェントが行単位のレビューコメントを生成する。 | Alibaba製（Apache-2.0）。導入: <code>npm install -g @alibaba-group/open-code-review</code><br>変更差分をレビュー: <code>ocr review</code> |
+| [tester-army/e2e](https://github.com/tester-army/e2e)<br>⭐ 2,546 | Webアプリとモバイルアプリ向けのE2Eテストフレームワーク。自然言語で書いた目標に沿ってエージェントがアプリを操作し、同じテスト内でロケーターとアサーションによって結果を検証する。後続のアサーションで検証されたエージェントの操作は記録され、アプリが変わるまでは次回以降モデルを呼ばずに再生する。WebはPlaywright経由でChromium、Firefox、WebKitに、モバイルはiOS／Androidのシミュレーターとエミュレーターに対応する。 | Apache-2.0。TesterArmy製。導入: <code>npx e2e init</code><br>1.0前のため、マイナーリリース間でもAPIと設定が変わる可能性がある。CLIは匿名の利用状況データを送信する。無効化: <code>npx e2e telemetry disable</code> |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)<br>⭐ 92,523 | 要件定義、計画、実装、テスト、レビュー、リリースまでの工程と品質ゲートを、Claude CodeやCodexなどへ守らせる実務向けSkill集。 | |
 | [mattpocock/skills](https://github.com/mattpocock/skills)<br>⭐ 253,825 | `grill-me`や`grill-with-docs`による要件の掘り下げ、用語整理、チケット運用など、開発者が制御権を維持するための小さなSkillを収録する。 | |
 | [trailofbits/skills](https://github.com/trailofbits/skills)<br>⭐ 6,980 | Trail of Bitsが公開するセキュリティ向けSkill／Plugin集。コード監査、差分レビュー、静的解析、Semgrep、依存関係、GitHub Actionsなどを対象とする。 | |
@@ -68,9 +69,11 @@
 | [ferdinandobons/startup-skill](https://github.com/ferdinandobons/startup-skill)<br>⭐ 889 | 市場調査、競合分析、価格分析、事業アイデア検証などを実行するスタートアップ向けSkill集。 | |
 | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill)<br>⭐ 84,776 | AIが生成するWeb UIから、凡庸な配色・レイアウト・装飾を減らすためのデザイン規則を提供する。 | |
 | [plannotator/effective-html](https://github.com/plannotator/effective-html)<br>⭐ 2,989 | AIにHTML形式のワイヤーフレーム、プロトタイプ、計画書、図解を生成させるAgent Skill集。 | |
+| [nicobailon/visual-explainer](https://github.com/nicobailon/visual-explainer)<br>⭐ 10,242 | ターミナルのASCII図や大きな表の代わりに、構成図、差分レビュー、計画と実装の照合、プロジェクトの振り返りなどを自己完結型のHTMLページまたはスライドとして生成するAgent Skill。`/diff-review`、`/plan-review`、`/fact-check`などのコマンドと、テーマ切替、PPTX出力、ローカルMCPサーバーを備える。 | MIT。Claude Codeへ導入: <code>/plugin marketplace add nicobailon/visual-explainer</code>、<code>/plugin install visual-explainer@visual-explainer-marketplace</code><br>出力先は既定で<code>~/.agent/diagrams/</code>。 |
 | [mathbullet/skills](https://github.com/mathbullet/skills)<br>⭐ 119 | 日本語説明、出典付き調査、論文解説、HTML図解などの出力規則を定義したAgent Skill集。 | |
 | [japanese-tech-writing/SKILL](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)<br>⭐ 2,017 | 日本語の技術文書・書籍原稿向けの文章規範。段落構成、論証の厳密さ、読み手の負荷、LLMらしい空句、翻訳調の比喩、冗長さなどを点検する。 | Unlicense。 |
 | [cognitive-rhythm-writing/SKILL](https://gist.github.com/k16shikano/eb2929f13ed19c97188393d297be8432)<br>⭐ 1,053 | 日本語の説明文に認知リズムを設計する文章規範。観察・逡巡・断定・再観察の切替、文の拍、段落の密度波形、未回収の緊張、問いの回収、駄文の点検などを扱う。 | `japanese-tech-writing/SKILL.md`との併用を前提とする。 |
+| [nanaism/yomiyasu](https://github.com/nanaism/yomiyasu)<br>⭐ 1,367 | AIが生成した日本語を、読みやすく情報密度の高い日本語へ推敲するAgent Skill。動作主の復元、非生物主語の解体、比喩動詞の具体的な操作への置き換えなど7つの変換原則を適用し、tech／business／essayのドメイン別に文体を調整する。AIっぽさを検査する`yomiyasu_lint.py`と、推敲前後の意味の変化を確認する`yomiyasu_diff.py`を同梱する。 | MIT。導入: <code>npx skills add nanaism/yomiyasu</code><br>他の日本語校正Skillと同時に有効化すると指示が干渉するため、類似Skillを一時的に無効化して使う。 |
 
 ## 5. Skillの生成・変換・評価
 
