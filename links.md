@@ -36,6 +36,7 @@
 | [openai/plugins](https://github.com/openai/plugins)<br>⭐ 7,293 | OpenAIが公開するCodex向けPluginの公式例。Skillだけでなく、アプリ、MCP、エージェント、コマンド、フック、アセットをまとめた構成例を収録する。 | `openai/skills`は廃止済みであり、現在はこのリポジトリが後継。 |
 | [github/awesome-copilot](https://github.com/github/awesome-copilot)<br>⭐ 39,683 | GitHub Copilot向けのカスタムエージェント、instructions、Skills、hooks、workflows、pluginsを集めた公式コミュニティカタログ。 | |
 | [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills)<br>⭐ 31,910 | Vercelが公開するSkill集。React／Next.jsの性能、Webデザイン、アクセシビリティ、文書作成、Vercel運用などを対象とする。 | |
+| [cloudflare/skills](https://github.com/cloudflare/skills)<br>⭐ 2,978 | Cloudflareが公開するSkill集。Workers、Agents SDK、Durable Objects、Sandbox、Wrangler、Cloudflare Oneなど、Cloudflare上での開発と運用を対象とする。Plugin形式で導入すると、Cloudflare APIと最新ドキュメントへアクセスするCloudflareのリモートMCPサーバーも同時に設定される。 | Apache-2.0。Claude Codeへ導入: <code>/plugin marketplace add cloudflare/skills</code>、<code>/plugin install cloudflare@cloudflare</code><br>Skillだけを導入: <code>npx skills add https://github.com/cloudflare/skills</code> |
 | [VoltAgent/awesome-agent-skills](https://github.com/VoltAgent/awesome-agent-skills)<br>⭐ 35,187 | 公式チームとコミュニティが公開するAgent Skillsを分野別に探すための大規模カタログ。導入前に、Skill内のスクリプトと外部通信先を個別に確認する。 | |
 | [ComposioHQ/awesome-claude-skills](https://github.com/ComposioHQ/awesome-claude-skills)<br>⭐ 76,466 | Claude Skills、関連ツール、参考資料を分野別に整理したリンク集。Skill本体ではなくカタログに当たる。 | |
 | [anthropics/claude-plugins-community](https://github.com/anthropics/claude-plugins-community)<br>⭐ 4,465 | Anthropicの審査を通過したClaude Code／Cowork向けコミュニティプラグインのマーケットプレイス。 | 読み取り専用ミラー。プラグインの提出先は `clau.de/plugin-directory-submission`。 |
@@ -46,10 +47,13 @@
 | --- | --- | --- |
 | [cloudflare/security-audit-skill](https://github.com/cloudflare/security-audit-skill)<br>⭐ 24,025 | 偵察、カバレッジ主導の脆弱性探索、候補検証、機械可読な`findings.json`、独立検証、レポート生成までを行う、多段階セキュリティ監査用Agent Skill。 | `npx skills add https://github.com/cloudflare/security-audit-skill --skill security-audit` |
 | [alibaba/open-code-review](https://github.com/alibaba/open-code-review)<br>⭐ 43,635 | Alibaba製のAIコードレビューCLI（`ocr`）。Alibaba社内の公式AIコードレビュー支援ツールをOSS化したもの。対象ファイルの選定、関連ファイルの束ね、ルール照合、指摘位置の補正を決定的な処理で担い、LLMエージェントが行単位のレビューコメントを生成する。 | Alibaba製（Apache-2.0）。導入: <code>npm install -g @alibaba-group/open-code-review</code><br>変更差分をレビュー: <code>ocr review</code> |
+| [akkie76/code-review-skills](https://github.com/akkie76/code-review-skills)<br>⭐ 81 | 書籍『コードレビューの教科書』（技術評論社）の考え方をAIコーディングエージェント向けに独自に翻案した、Codex／Claude Code向けのコードレビューSkill。変更行の外まで挙動を追跡し、すべての指摘に具体的な発生条件と影響を求めることで、スタイルだけの指摘や根拠のない推測を抑える。各指摘には`MUST(Functionality):`のように対応の必要度と観点を付け、日本語または英語で優先順位付きの指摘を出力する。 | MIT。現在はベータ版。Skill名は`evidence-code-review`。<br>Claude Codeへ導入: リポジトリを取得し、<code>cp -R dist/claude-code/evidence-code-review ~/.claude/skills/</code><br>確実に使うときは<code>/evidence-code-review</code>で呼び出す。 |
+| [devdotfast/whiteboard](https://github.com/devdotfast/whiteboard)<br>⭐ 2,691 | 人間とコーディングエージェントが同じキャンバス上でソフトウェアを設計・レビューするデスクトップアプリ。Claude CodeやCodexからSDK経由でシーケンス図やER図を描かせ、図やエージェントの作業記録から該当コードへ移動できる。AST解析による意味単位の差分表示と、エージェントが自律的に下した判断を追跡する決定ログを備える。 | MIT。Code - OSSをベースにしている。macOS、Windows、Linux向けのアプリを`dev.fast/install`から入手する。<br>現時点ではアプリ内でファイルを編集できない。匿名のテレメトリーを送信する（コードやプロンプトは含まない）が、無効化できる。 |
 | [tester-army/e2e](https://github.com/tester-army/e2e)<br>⭐ 2,554 | Webアプリとモバイルアプリ向けのE2Eテストフレームワーク。自然言語で書いた目標に沿ってエージェントがアプリを操作し、同じテスト内でロケーターとアサーションによって結果を検証する。後続のアサーションで検証されたエージェントの操作は記録され、アプリが変わるまでは次回以降モデルを呼ばずに再生する。WebはPlaywright経由でChromium、Firefox、WebKitに、モバイルはiOS／Androidのシミュレーターとエミュレーターに対応する。 | Apache-2.0。TesterArmy製。導入: <code>npx e2e init</code><br>1.0前のため、マイナーリリース間でもAPIと設定が変わる可能性がある。CLIは匿名の利用状況データを送信する。無効化: <code>npx e2e telemetry disable</code> |
 | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills)<br>⭐ 101,034 | 要件定義、計画、実装、テスト、レビュー、リリースまでの工程と品質ゲートを、Claude CodeやCodexなどへ守らせる実務向けSkill集。 | |
 | [mattpocock/skills](https://github.com/mattpocock/skills)<br>⭐ 275,764 | `grill-me`や`grill-with-docs`による要件の掘り下げ、用語整理、チケット運用など、開発者が制御権を維持するための小さなSkillを収録する。 | |
 | [trailofbits/skills](https://github.com/trailofbits/skills)<br>⭐ 7,359 | Trail of Bitsが公開するセキュリティ向けSkill／Plugin集。コード監査、差分レビュー、静的解析、Semgrep、依存関係、GitHub Actionsなどを対象とする。 | |
+| [zhaoxuya520/reverse-skill](https://github.com/zhaoxuya520/reverse-skill)<br>⭐ 39,598 | リバースエンジニアリング、許可を得たペネトレーションテスト、セキュリティ研究向けのSkillルーター集。APK、実行ファイル、フロントエンドJSの暗号化処理、マルウェア、CTFなどの対象に応じて、AIコーディングエージェントを適切な手順と道具（jadx、Frida、IDA、radare2など）へ振り分ける。手元のツールの検出、許可範囲（スコープ）の確認、証拠の記録、レポート作成までの作業手順を備え、作業で得た知見を蓄積して再利用する。 | MIT（同梱の`CTF-Sandbox-Orchestrator/`はGPLv3）。<br>利用は、自分が管理するシステムか、明示的に検査の許可を得たシステムに限られる。<br>READMEや`README_AI.md`にAIエージェント向けの指示が含まれ、ツールを導入するスクリプトも同梱されるため、エージェントに読ませる前に内容を確認する。<br>Java、Node.js 22.12以降、Python 3が必要。 |
 | [DietrichGebert/ponytail](https://github.com/DietrichGebert/ponytail)<br>⭐ 154,338 | AIコーディングエージェントが不要な依存関係や抽象化を増やす動作を抑え、既存実装、標準ライブラリ、プラットフォーム標準機能を優先させるルールセット兼Plugin。 | |
 | [humanlayer/skills](https://github.com/humanlayer/skills)<br>⭐ 4,917 | Claude Code向けSkill集。図やHTMLで説明する `show-me`、CLAUDE.md改善、React型整理などを収録する。 | |
 | [ayghri/i-have-adhd](https://github.com/ayghri/i-have-adhd)<br>⭐ 53,395 | コーディングエージェントの回答を、次の行動から始める、手順を番号化する、脱線や不要な前置き・締めを抑えるなど、ADHDに配慮した実行しやすい出力へ整えるSkill／Plugin。 | `/i-have-adhd`（Codexは`$i-have-adhd`）で明示的に有効化。 |
@@ -65,6 +69,7 @@
 | [SeanJ1ang/design-judge-skills](https://github.com/SeanJ1ang/design-judge-skills)<br>⭐ 712 | デザイン賞の公式情報確認、作品評価、応募先選定、申請文作成、提出前確認を、根拠と採点基準を残しながら実行するSkill集。 | |
 | [imxv/Pretty-mermaid-skills](https://github.com/imxv/Pretty-mermaid-skills)<br>⭐ 1,511 | MermaidソースからSVG、PNG、ターミナル向け表現をローカル生成するSkill。Mermaidの構文を維持したまま見た目を整える用途に向く。 | |
 | [cathrynlavery/diagram-design](https://github.com/cathrynlavery/diagram-design)<br>⭐ 43,295 | アーキテクチャ図、状態遷移、シーケンス、ロードマップなどを、HTML＋SVGの編集可能な図として生成するSkill。Mermaid以外の誌面向けレイアウトを作る用途に向く。 | |
+| [sagochiko/aws-drawio-diagram-skill](https://github.com/sagochiko/aws-drawio-diagram-skill)<br>⭐ 35 | AWSの構成を箇条書きで伝えるだけで、AWS公式アイコンを使った構成図をdraw.io形式（`.drawio`）で描くClaude Code向けSkill。枠の入れ子、ラベルの位置、線の引き方、色などの描き方をSkill側で定め、タイトルや凡例などの飾りを足さない。既存の`.drawio`へのサービス追加にも対応する。 | Apache-2.0。AWSとdraw.ioの公式Skillではない。<br>Claude Codeへ導入: <code>/plugin marketplace add sagochiko/aws-drawio-diagram-skill</code>、<code>/plugin install aws-drawio-diagram@aws-drawio-diagram-skill</code><br>Python 3が必要。draw.io desktopがあると、PNGへ書き出して描画結果を確認してから渡す。動作確認はmacOSのみで、Windowsでは未確認。 |
 | [koala73/worldmonitor](https://github.com/koala73/worldmonitor)<br>⭐ 87,753 | ニュース、地政学、災害、インフラなどの世界情勢を集約するリアルタイム監視ダッシュボード。 | |
 | [ferdinandobons/startup-skill](https://github.com/ferdinandobons/startup-skill)<br>⭐ 1,162 | 市場調査、競合分析、価格分析、事業アイデア検証などを実行するスタートアップ向けSkill集。 | |
 | [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill)<br>⭐ 92,490 | AIが生成するWeb UIから、凡庸な配色・レイアウト・装飾を減らすためのデザイン規則を提供する。 | |
@@ -74,6 +79,7 @@
 | [japanese-tech-writing/SKILL](https://gist.github.com/k16shikano/fd287c3133457c4fd8f5601d34aa817d)<br>⭐ 2,088 | 日本語の技術文書・書籍原稿向けの文章規範。段落構成、論証の厳密さ、読み手の負荷、LLMらしい空句、翻訳調の比喩、冗長さなどを点検する。 | Unlicense。 |
 | [cognitive-rhythm-writing/SKILL](https://gist.github.com/k16shikano/eb2929f13ed19c97188393d297be8432)<br>⭐ 1,072 | 日本語の説明文に認知リズムを設計する文章規範。観察・逡巡・断定・再観察の切替、文の拍、段落の密度波形、未回収の緊張、問いの回収、駄文の点検などを扱う。 | `japanese-tech-writing/SKILL.md`との併用を前提とする。 |
 | [nanaism/yomiyasu](https://github.com/nanaism/yomiyasu)<br>⭐ 1,367 | AIが生成した日本語を、読みやすく情報密度の高い日本語へ推敲するAgent Skill。動作主の復元、非生物主語の解体、比喩動詞の具体的な操作への置き換えなど7つの変換原則を適用し、tech／business／essayのドメイン別に文体を調整する。AIっぽさを検査する`yomiyasu_lint.py`と、推敲前後の意味の変化を確認する`yomiyasu_diff.py`を同梱する。 | MIT。導入: <code>npx skills add nanaism/yomiyasu</code><br>他の日本語校正Skillと同時に有効化すると指示が干渉するため、類似Skillを一時的に無効化して使う。 |
+| [coji/natural-japanese](https://github.com/coji/natural-japanese)<br>⭐ 1,863 | 議事録、調査レポート、社内ガイド、企画書、ブログ記事など、仕事の日本語を読みやすく書く・直すためのAgent Skill。書く前に見出しの骨組みを固めて12箇条の文体ルールを適用し、それでも残る定型句、単調な文のリズム、英語の直訳調を形態素解析（sudachipy）による`lint.py`で検出する。直すかどうかの判断は機械に任せず、6軸の推敲基準を満たすまでエージェントが推敲を繰り返す。 | MIT。導入: <code>npx skills add coji/natural-japanese</code><br>書き換えずに自然度（0〜100）だけを測る: <code>/natural-japanese score &lt;ファイル&gt;</code><br>検査スクリプトを単体で使うにはuvが必要。`japanese-tech-writing/SKILL.md`の空句の分類を参考にしている。 |
 
 ## 5. Skillの生成・変換・評価
 
@@ -173,6 +179,7 @@
 | [Egonex-AI/Understand-Anything](https://github.com/Egonex-AI/Understand-Anything)<br>⭐ 85,245 | コードベースを解析し、ファイル、関数、依存関係を対話可能なナレッジグラフへ変換する。Codexにも対応する。 | |
 | [upstash/context7](https://github.com/upstash/context7)<br>⭐ 62,664 | ライブラリの最新公式ドキュメントを取得し、AIコーディングツールへ渡すMCP対応サービス。 | |
 | [MemPalace/mempalace](https://github.com/MemPalace/mempalace)<br>⭐ 59,407 | 会話履歴を要約せず原文のままローカル保存し、階層構造と意味検索によってAIへ過去情報を返す長期記憶基盤。 | |
+| [vectorize-io/hindsight](https://github.com/vectorize-io/hindsight)<br>⭐ 45,344 | 会話を思い出すだけでなく、経験から学習することを目指すAIエージェント向けの記憶基盤。retain（記憶の保存）、recall（検索）、reflect（記憶を分析して新しい理解を作る）の3操作を提供する。recallでは、意味検索、キーワード検索（BM25）、エンティティ間の関係をたどるグラフ検索、時間範囲での絞り込みを並列に実行する。記憶はユーザー、エージェント、プロジェクトごとに分離して保存する。MCPエンドポイントも標準で備える。 | MIT。サーバーはDockerやpipで起動し、LLMのAPIキーまたは既存のサブスクリプションを使う。有料のマネージド版（Hindsight Cloud）もある。<br>コーディングエージェントへ導入: <code>npx @vectorize-io/hindsight-coding-agents install claude-code</code>（Gitの履歴と過去のセッションから、リポジトリごとの記憶を自動で作る） |
 
 ## 11. 評価・観測・改善
 
@@ -197,3 +204,4 @@
 | --- | --- | --- |
 | [microsoft/coreutils](https://github.com/microsoft/coreutils)<br>⭐ 5,223 | `ls`、`cat`、`grep`、`find`などのUNIX系コマンドをWindows上で提供するMicrosoft管理のプレビュー版。 | PowerShellの同名エイリアスや組み込みコマンドとの競合に注意。導入: <code>winget install Microsoft.Coreutils</code> |
 | [vercel-labs/portless](https://github.com/vercel-labs/portless)<br>⭐ 12,643 | `localhost:5173`のようなポート番号を、安定した名前付きローカルURLへ置き換える開発ツール。 | |
+| [GitHubSecurityLab/gh-secure](https://github.com/GitHubSecurityLab/gh-secure)<br>⭐ 509 | GitHub Security Labの推奨設定に沿って、リポジトリのセキュリティ機能を有効化するGitHub CLI拡張機能。ブランチ保護、非公開の脆弱性報告、シークレットスキャン、Dependabot、CodeQLによるコードスキャンの5機能を、対話形式または一括で設定する。GitHub Copilot CLIなどのAIアシスタントから呼び出して、現状の確認や不足機能の有効化を任せることもできる。 | MIT。導入: <code>gh extension install GitHubSecurityLab/gh-secure</code><br>現状を確認: <code>gh secure status</code><br>変更内容を事前に確認: <code>gh secure --yes --dry-run</code><br>対象リポジトリの管理者またはmaintain権限が必要。ブランチ保護を有効化すると、既定ブランチへの直接pushができなくなる場合がある。 |
