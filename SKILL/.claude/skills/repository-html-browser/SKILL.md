@@ -39,12 +39,14 @@ repository/
    - リポジトリルートからの相対パス
    - 行番号
    - コード本文
+   - シンタックスハイライト（キーワード、文字列、数値、コメント、関数名等）
    - 左側のExplorer風ツリー
 5. Explorerのファイルリンクから別ファイルへ移動できるようにする。
-6. `.git/` と生成先 `html-code/` 自身は必ず変換対象から除外する。
-7. Gitリポジトリでは、原則として `git ls-files -co --exclude-standard` を利用し、`.gitignore` 等でignoreされたファイルを変換しない。
-8. `.gitignore` に書かれていなくても、依存ライブラリ、ビルド成果物、キャッシュ、テスト出力、ローカル状態など、一般にソースコード閲覧対象ではないものをデフォルト除外する。
-9. デフォルト除外の代表例は次の通り。
+6. シンタックスハイライトは生成時にHTMLへ埋め込み、ブラウザ表示時に外部CDNやnpmパッケージを必要としない。TypeScript/JavaScript、Java/Kotlin、Python、Go、Rust、C/C++/C#、Shell、SQL、JSON、YAML/TOML/INI/Properties、HTML/XML、CSS系、Markdown、GraphQLを少なくとも識別する。
+7. `.git/` と生成先 `html-code/` 自身は必ず変換対象から除外する。
+8. Gitリポジトリでは、原則として `git ls-files -co --exclude-standard` を利用し、`.gitignore` 等でignoreされたファイルを変換しない。
+9. `.gitignore` に書かれていなくても、依存ライブラリ、ビルド成果物、キャッシュ、テスト出力、ローカル状態など、一般にソースコード閲覧対象ではないものをデフォルト除外する。
+10. デフォルト除外の代表例は次の通り。
    - 依存: `node_modules/`, `vendor/`, `.venv/`, `venv/`, `env/`, `__pypackages__/`
    - ビルド: `dist/`, `build/`, `out/`, `target/`, `bin/`, `obj/`, `.next/`, `.nuxt/`, `.output/`, `.svelte-kit/`, `.astro/`
    - キャッシュ: `.cache/`, `.parcel-cache/`, `.turbo/`, `.nx/`, `.vite/`, `.pytest_cache/`, `.mypy_cache/`, `.ruff_cache/`, `__pycache__/`, `.gradle/`, `.m2/`
@@ -53,11 +55,11 @@ repository/
    - IDE/AIツール: `.vscode/`, `.idea/`, `.vs/`, `.cursor/`, `.continue/`, `.codex/`, `.claude/cache/`
    - その他生成物: `generated/`, `gen/`, `docs/generated/`, `storybook-static/`, `.docusaurus/`, `site/`, `.npm/`, `.pnpm-store/`, `.yarn/cache/`, `.yarn/unplugged/`, `tmp/`, `temp/`, `logs/`
    - ファイル: lockファイル、source map、minified JS/CSS、コンパイル済みバイナリ、アーカイブ、画像・動画・フォント等
-10. デフォルト除外を意図的に含めたい場合は `--include-dir <ディレクトリ名>` または `--include-file <ファイル名または相対パス>` を利用する。これらは複数回指定できる。`.git/` と `html-code/` は例外指定でも含めない。
-11. ignore済みファイルまで列挙する必要がある場合だけ `--include-ignored` を使う。ただし固定のデフォルト除外は引き続き適用する。
-12. Gitが利用できない場合はファイルシステム走査へフォールバックする。この場合も固定のデフォルト除外を適用する。
-13. デフォルト除外されていないバイナリファイルが存在した場合は、ツリーから消さず、バイナリ用HTMLページを作り「バイナリのため本文表示対象外」と表示する。
-14. シンボリックリンクはリンク先を展開せず、シンボリックリンクとしてページを生成する。
+11. デフォルト除外を意図的に含めたい場合は `--include-dir <ディレクトリ名>` または `--include-file <ファイル名または相対パス>` を利用する。これらは複数回指定できる。`.git/` と `html-code/` は例外指定でも含めない。
+12. ignore済みファイルまで列挙する必要がある場合だけ `--include-ignored` を使う。ただし固定のデフォルト除外は引き続き適用する。
+13. Gitが利用できない場合はファイルシステム走査へフォールバックする。この場合も固定のデフォルト除外を適用する。
+14. デフォルト除外されていないバイナリファイルが存在した場合は、ツリーから消さず、バイナリ用HTMLページを作り「バイナリのため本文表示対象外」と表示する。
+15. シンボリックリンクはリンク先を展開せず、シンボリックリンクとしてページを生成する。
 
 ## 実行手順
 
@@ -126,4 +128,5 @@ node .claude/skills/repository-html-browser/scripts/generate-html-code.mjs --inc
 - 対象となった全ファイルに対応する `.html` が存在する。
 - 出力側の相対ディレクトリ構造が元リポジトリと一致する。
 - `フォルダーツリー.html` の全ファイルリンクが対応ページを指す。
+- 対応言語のコードページでシンタックスハイライト用のトークンクラスが生成される。
 - 生成処理がエラー0件で終了している。
