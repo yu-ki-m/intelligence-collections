@@ -4,11 +4,13 @@ import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {
-  escapeHtml, toPosix, outputFileFor, isLikelyBinary, baseCss, makeTree, sortTree, renderTree, mapLimit,
+  escapeHtml, toPosix, hrefFrom, outputFileFor, isLikelyBinary, baseCss, makeTree, sortTree, renderTree, mapLimit,
   execFileAsync, sourceSignature, readGuideMetas, renderGuideSection,
-  OUTPUT_DIR_NAME, TREE_PAGE_NAME, GUIDES_DIR_NAME, MANIFEST_NAME,
+  OUTPUT_DIR_NAME, TREE_PAGE_NAME, GUIDES_DIR_NAME, MANIFEST_NAME, MANIFEST_VERSION,
 } from './lib/common.mjs';
 import { highlightCode, languageFor } from './lib/highlight.mjs';
+import { Worker } from 'node:worker_threads';
+import { writeXref, xrefLinks, normalizeSource, isXrefFile, XREF_MENU_SCRIPT } from './lib/xref.mjs';
 
 const args = process.argv.slice(2);
 const opt = (name, fallback = undefined) => {
@@ -24,6 +26,9 @@ const valuesOf = name => args.flatMap((arg, i) => arg === name && i + 1 < args.l
 const includeIgnored = args.includes('--include-ignored');
 const includedDirs = new Set(valuesOf('--include-dir'));
 const includedFiles = new Set(valuesOf('--include-file'));
+const xrefEnabled = !args.includes('--no-xref');
+const typescriptPath = opt('--typescript', null);
+const javaPath = opt('--java', null);
 
 // These can never be traversed. .codebase-guide-out is the output itself and .git contains VCS internals.
 const HARD_EXCLUDED_DIRS = new Set(['.git', OUTPUT_DIR_NAME]);
@@ -116,12 +121,43 @@ async function walkFilesystem() {
   return out;
 }
 
-function renderTextPage(rel, text, treeHtml) {
-  const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+// 定義の解析を別スレッドで始める。メモリ不足などで止まっても、リンクを付けないだけで生成は続ける。
+function startXref(files) {
+  console.log('Definition links: TypeScript / Java のコンパイラーで定義の場所を求める(別スレッド)');
+  return new Promise(resolve => {
+    let settled = false;
+    const finish = result => { if (!settled) { settled = true; resolve(result); } };
+    const worker = new Worker(new URL('./lib/xref-worker.mjs', import.meta.url), {
+      workerData: { root, files, typescript: typescriptPath, java: javaPath },
+      resourceLimits: { maxOldGenerationSizeMb: 8192 },
+    });
+    worker.on('message', m => {
+      if (m.log) console.log(m.log);
+      if (m.result) finish(m.result);
+    });
+    worker.on('error', err => finish({ status: 'skip', reason: `定義の解析が失敗した: ${err?.message || err}` }));
+    worker.on('exit', code => finish({ status: 'skip', reason: `定義の解析が途中で終了した(終了コード ${code})` }));
+  });
+}
+
+// 定義リンク: 同じファイル内はそのページの行へ、別のファイルは別タブでそのファイルのページの行へ移動する
+function definitionLinks(xref, rel, normalized, outFile) {
+  if (!xref) return null;
+  return xrefLinks(xref, rel, normalized, (target, line) => (target === rel
+    ? { href: `#L${line}`, label: `${target}:${line}`, blank: false }
+    : { href: `${hrefFrom(outFile, outputFileFor(outputDir, target))}#L${line}`, label: `${target}:${line}`, blank: true }));
+}
+
+function renderTextPage(rel, text, treeHtml, outFile, xref) {
+  const normalized = normalizeSource(text);
   const lines = normalized.split('\n');
-  const highlightedLines = highlightCode(normalized, rel).split('\n');
-  const rows = lines.map((line, i) => `<tr><td class="ln">${i + 1}</td><td class="src">${highlightedLines[i] ?? escapeHtml(line)}</td></tr>`).join('');
-  return `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(rel)}</title><style>${baseCss()}</style></head><body><div class="app"><div class="titlebar">${escapeHtml(path.basename(root))} — Codebase Guide</div><aside class="sidebar"><div class="sidebar-title">Explorer</div><nav class="tree">${treeHtml}</nav></aside><main class="main"><div class="tabbar"><div class="tab">${escapeHtml(path.basename(rel))}</div></div><div class="crumbs">${escapeHtml(toPosix(rel).split('/').join('  ›  '))}<span class="meta">${escapeHtml(languageFor(rel))} · ${lines.length} lines</span></div><div class="editor"><table class="code-table"><tbody>${rows}</tbody></table></div></main><footer class="status"><span>Codebase Guide</span><span>${escapeHtml(languageFor(rel))}</span><span>UTF-8</span></footer></div></body></html>`;
+  const links = definitionLinks(xref, rel, normalized, outFile);
+  const highlightedLines = highlightCode(normalized, rel, links).split('\n');
+  const used = links ? [...links.values()].filter(l => l.used) : [];
+  const rows = lines.map((line, i) => `<tr id="L${i + 1}"><td class="ln">${i + 1}</td><td class="src">${highlightedLines[i] ?? escapeHtml(line)}</td></tr>`).join('');
+  const menu = used.some(l => l.open.includes('data-xm=')) ? `<script>${XREF_MENU_SCRIPT}</script>` : '';
+  const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(rel)}</title><style>${baseCss()}</style></head><body><div class="app"><div class="titlebar">${escapeHtml(path.basename(root))} — Codebase Guide</div><aside class="sidebar"><div class="sidebar-title">Explorer</div><nav class="tree">${treeHtml}</nav></aside><main class="main"><div class="tabbar"><div class="tab">${escapeHtml(path.basename(rel))}</div></div><div class="crumbs">${escapeHtml(toPosix(rel).split('/').join('  ›  '))}<span class="meta">${escapeHtml(languageFor(rel))} · ${lines.length} lines${used.length ? ` · 定義リンク ${used.length}` : ''}</span></div><div class="editor"><table class="code-table"><tbody>${rows}</tbody></table></div></main><footer class="status"><span>Codebase Guide</span><span>${escapeHtml(languageFor(rel))}</span><span>UTF-8</span></footer></div>${menu}</body></html>`;
+  return { html, links: used.length, linkable: links ? links.size : 0 };
 }
 
 function renderBinaryPage(rel, treeHtml, info) {
@@ -147,6 +183,10 @@ async function main() {
     process.exit(1);
   }
 
+  // 定義リンク(TypeScript / JavaScript)は別スレッドで求め、その間にリンクの要らないページを先に書き出す。
+  // typescript の無いリポジトリや、解析が失敗したときは、リンクを付けずに進める。
+  const xrefPending = xrefEnabled ? startXref(files) : Promise.resolve({ status: 'off', reason: '--no-xref の指定' });
+
   const tree = makeTree(files);
   sortTree(tree);
 
@@ -167,9 +207,11 @@ async function main() {
   let textCount = 0;
   let binaryCount = 0;
   let symlinkCount = 0;
+  let linkCount = 0;
+  let linkableCount = 0;
   const errors = [];
 
-  await mapLimit(files, concurrency, async relPosix => {
+  const renderFile = xrefIndex => async relPosix => {
     const rel = relPosix.split('/').join(path.sep);
     const abs = path.join(root, rel);
     const out = outputFileFor(outputDir, rel);
@@ -192,13 +234,24 @@ async function main() {
         await fs.writeFile(out, renderBinaryPage(relPosix, treeFor(out), `バイナリファイルのため本文表示対象外。サイズ: ${buffer.length.toLocaleString()} bytes`));
         binaryCount++;
       } else {
-        await fs.writeFile(out, renderTextPage(relPosix, buffer.toString('utf8'), treeFor(out)));
+        const page = renderTextPage(relPosix, buffer.toString('utf8'), treeFor(out), out, xrefIndex);
+        await fs.writeFile(out, page.html);
+        linkCount += page.links;
+        linkableCount += page.linkable;
         textCount++;
       }
     } catch (err) {
       errors.push({ rel: relPosix, error: err?.message || String(err) });
     }
-  });
+  };
+
+  await mapLimit(files.filter(f => !isXrefFile(f)), concurrency, renderFile(null));
+  const xref = await xrefPending;
+  const xrefIndex = xref.status === 'ok' ? xref : null;
+  await mapLimit(files.filter(isXrefFile), concurrency, renderFile(xrefIndex));
+
+  // ガイドのページにも同じ定義リンクを付けるため、求めた結果を残す
+  if (xrefIndex) await writeXref(outputDir, xrefIndex);
 
   const indexFile = path.join(outputDir, TREE_PAGE_NAME);
   await fs.writeFile(indexFile, renderIndexPage(treeFor(indexFile), files.length, renderGuideSection(await readGuideMetas(outputDir))));
@@ -206,11 +259,14 @@ async function main() {
   // ガイド生成(prepare-guide.mjs / build-guide.mjs)が、同じ一覧と同じ除外設定を使うための記録
   await fs.writeFile(path.join(outputDir, MANIFEST_NAME), JSON.stringify({
     tool: 'codebase-guide',
-    version: 2,
+    version: MANIFEST_VERSION,
     generatedAt: new Date().toISOString(),
     listing,
     source,
-    options: { includeIgnored, includeDirs: [...includedDirs], includeFiles: [...includedFiles] },
+    options: { includeIgnored, includeDirs: [...includedDirs], includeFiles: [...includedFiles], xref: xrefEnabled, typescript: typescriptPath, java: javaPath },
+    xref: xrefIndex
+      ? { status: 'ok', engine: xrefIndex.engine, files: xrefIndex.stats.files, links: linkCount }
+      : { status: xref.status, reason: xref.reason },
     files,
   }));
 
@@ -237,6 +293,14 @@ async function main() {
   console.log(`Git ignored     : ${includeIgnored ? 'included when not otherwise excluded' : 'excluded'}`);
   if (includedDirs.size) console.log(`Included dirs   : ${[...includedDirs].join(', ')}`);
   if (includedFiles.size) console.log(`Included files  : ${[...includedFiles].join(', ')}`);
+  if (xrefIndex) {
+    const dropped = linkableCount - linkCount;
+    console.log(`Definition links: ${linkCount} links in ${xrefIndex.stats.files} files (${xrefIndex.engine}, ${xrefIndex.stats.seconds.toFixed(1)}s)${dropped ? `、ハイライトの字句と位置が合わず付けなかったもの ${dropped}` : ''}`);
+    if (xrefIndex.stats.minified) console.log(`  圧縮されたコードのため対象外: ${xrefIndex.stats.minified} files (1行が3000文字を超える、または2MBを超える)`);
+    for (const n of xrefIndex.notes) console.log(`  注意: ${n}`);
+  } else {
+    console.log(`Definition links: なし。${xref.reason}`);
+  }
   console.log(`Elapsed         : ${elapsed}s`);
   console.log(`Index           : ${indexFile}`);
 

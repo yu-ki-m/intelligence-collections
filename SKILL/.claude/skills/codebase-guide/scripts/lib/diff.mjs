@@ -1,5 +1,6 @@
 // 差分の範囲の解釈と、変更行(新しい版の行番号)の抽出。
 
+import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { git, isLikelyBinary, splitLines, EXCLUDE_OUTPUT_PATHSPECS } from './common.mjs';
@@ -155,6 +156,39 @@ export async function collectDiff(root, d) {
 }
 
 // 差分の新しい版(コミット指定ならそのコミット、未コミットや差分なしなら作業ツリー)からファイルを読む。
+// 複数のファイルをまとめて読む。比較先がコミットなら git cat-file --batch を1回だけ起動する(ファイルごとに git を起動すると遅い)。
+export async function readTargetFiles(root, d, rels) {
+  const out = new Map();
+  if (!rels.length) return out;
+  if (!(d && d.target)) {
+    for (let i = 0; i < rels.length; i += 32) {
+      await Promise.all(rels.slice(i, i + 32).map(async rel => out.set(rel, await readTargetFile(root, d, rel))));
+    }
+    return out;
+  }
+  const buf = await new Promise((resolve, reject) => {
+    const child = spawn('git', ['-C', root, '-c', 'core.quotepath=false', 'cat-file', '--batch'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+    const chunks = [];
+    child.stdout.on('data', c => chunks.push(c));
+    child.on('error', reject);
+    child.on('close', code => (code === 0 ? resolve(Buffer.concat(chunks)) : reject(new Error(`git cat-file が終了コード ${code} で終わった`))));
+    child.stdin.on('error', () => {});
+    child.stdin.end(`${rels.map(rel => `${d.target}:./${rel}`).join('\n')}\n`);
+  });
+  let pos = 0;
+  for (const rel of rels) {
+    const nl = buf.indexOf(10, pos);
+    if (nl < 0) { out.set(rel, null); continue; }
+    const m = /^[0-9a-f]+ (\w+) (\d+)$/.exec(buf.toString('utf8', pos, nl));
+    pos = nl + 1;
+    if (!m) { out.set(rel, null); continue; } // 「<名前> missing」など
+    const size = Number(m[2]);
+    out.set(rel, m[1] === 'blob' ? buf.subarray(pos, pos + size) : null);
+    pos += size + 1;
+  }
+  return out;
+}
+
 export async function readTargetFile(root, d, rel) {
   if (d && d.target) {
     // "--" を付けないと、Windowsでは引数をファイル名として確かめようとして長いパスで失敗する

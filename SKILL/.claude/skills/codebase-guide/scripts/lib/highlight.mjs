@@ -40,13 +40,14 @@ function keywordSetFor(family) {
   return HIGHLIGHT_KEYWORDS[family] || new Set();
 }
 
-export function highlightCode(text, file) {
+// links は本文の位置 → { len, open }(xref.mjs の xrefLinks)。字句の位置と長さが一致したときだけ <a> で囲み、使ったものに used を付ける。
+export function highlightCode(text, file, links = null) {
   const family = highlightFamily(file);
   if (family === 'plain') return escapeHtml(text);
   if (family === 'markup') return highlightMarkup(text);
   if (family === 'markdown') return highlightMarkdown(text);
   if (family === 'config') return highlightConfig(text);
-  return highlightCStyle(text, family);
+  return highlightCStyle(text, family, links);
 }
 
 function span(cls, value) {
@@ -104,11 +105,52 @@ function highlightConfig(text) {
   }).join('\n');
 }
 
-function highlightCStyle(text, family) {
+// 言語ごとの真偽値・空値。大文字小文字は区別する(Java の TRUE のような定数名を true と同じ扱いにしない)。設定ファイルの値だけは TRUE も真偽値とみなす。
+const LITERALS = {
+  javascript: /^(true|false|null|undefined)$/,
+  python: /^(True|False|None)$/,
+  go: /^(true|false|nil)$/,
+  rust: /^(true|false)$/,
+  json: /^(true|false|null)$/i,
+  default: /^(true|false|null)$/,
+};
+
+// 正規表現リテラルを始められる直前の字句(これ以外の後ろの / は割り算とみなす)
+// } の後ろは、JSX の {…} /> と区別できないので含めない
+const REGEX_AFTER_PUNCT = new Set(['(', ',', '=', ':', '[', '!', '&', '|', '?', '{', ';', '+', '-', '*', '%', '~', '^', '=>']);
+const REGEX_AFTER_KEYWORD = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'throw', 'case', 'do', 'else', 'yield', 'await']);
+
+// テンプレートリテラルの ${ の後ろから、対応する } の位置を返す(無ければ本文の末尾)
+function templateExpressionEnd(text, from) {
+  let depth = 1;
+  for (let j = from; j < text.length; j++) {
+    const c = text[j];
+    if (c === '\\') { j++; continue; }
+    if (c === '"' || c === "'" || c === '`') {
+      for (j++; j < text.length && text[j] !== c; j++) if (text[j] === '\\') j++;
+      continue;
+    }
+    if (c === '{') depth++;
+    else if (c === '}' && --depth === 0) return j;
+  }
+  return text.length;
+}
+
+// base は text が元の本文のどこから始まるか(テンプレートリテラルの ${ … } を再帰で色付けするときに、リンクの位置を合わせる)
+function highlightCStyle(text, family, links = null, base = 0) {
   const keywords = keywordSetFor(family);
+  const js = family === 'javascript';
+  const linked = (at, len, html) => {
+    const link = links && links.get(base + at);
+    if (!link || link.len !== len || html.includes('\n')) return html;
+    link.used = true;
+    return `${link.open}${html}</a>`;
+  };
   let out = '';
   let i = 0;
   let blockComment = false;
+  // 直前の意味のある字句(空白とコメントを除く)。正規表現リテラルと、. の後ろのプロパティ名の判定に使う。
+  let prev = null;
   const hashComments = ['python','shell','graphql'].includes(family);
   const slashComments = !['python','shell','graphql','sql','css','json'].includes(family);
   while (i < text.length) {
@@ -128,28 +170,73 @@ function highlightCStyle(text, family) {
       out += span('comment', text.slice(i, j)); i = j; continue;
     }
     const ch = text[i];
+    if (js && ch === '`') {
+      // テンプレートリテラル: ${ … } の中はコードとして色付けする
+      let j = i + 1;
+      let seg = i;
+      while (j < text.length) {
+        if (text[j] === '\\') { j += 2; continue; }
+        if (text[j] === '`') { j++; break; }
+        if (text[j] === '$' && text[j + 1] === '{') {
+          out += span('string', text.slice(seg, j)) + span('keyword', '${');
+          const end = templateExpressionEnd(text, j + 2);
+          out += highlightCStyle(text.slice(j + 2, end), family, links, base + j + 2);
+          if (end < text.length) out += span('keyword', '}');
+          j = seg = end + 1;
+          continue;
+        }
+        j++;
+      }
+      j = Math.min(j, text.length);
+      out += seg === i ? linked(i, j - i, span('string', text.slice(i, j))) : span('string', text.slice(seg, j));
+      i = j; prev = 'value'; continue;
+    }
     if (ch === '"' || ch === "'" || ch === '`') {
       const quote = ch; let j = i + 1;
       while (j < text.length) {
         if (text[j] === '\\') { j += 2; continue; }
         if (text[j] === quote) { j++; break; }
+        // JavaScript の '…' と "…" は行をまたがない(閉じ忘れや JSX の文中の ' で、以降の行の色がずれるのを防ぐ)
+        if (js && text[j] === '\n') break;
         j++;
       }
-      out += span('string', text.slice(i, j)); i = j; continue;
+      out += linked(i, j - i, span('string', text.slice(i, j))); i = j; prev = 'value'; continue;
+    }
+    if (js && ch === '/' && text[i + 1] !== '>' && (prev === null || REGEX_AFTER_PUNCT.has(prev) || REGEX_AFTER_KEYWORD.has(prev))) {
+      // 正規表現リテラル(同じ行の中で閉じるものだけ)
+      let j = i + 1;
+      let inClass = false;
+      while (j < text.length && text[j] !== '\n') {
+        const c = text[j];
+        if (c === '\\') { j += 2; continue; }
+        if (c === '[') inClass = true;
+        else if (c === ']') inClass = false;
+        else if (c === '/' && !inClass) break;
+        j++;
+      }
+      if (j < text.length && text[j] === '/') {
+        j++;
+        while (j < text.length && /[a-z]/i.test(text[j])) j++;
+        out += span('regex', text.slice(i, j)); i = j; prev = 'value'; continue;
+      }
     }
     const num = text.slice(i).match(/^(?:0x[0-9a-fA-F]+|0b[01]+|\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/);
-    if (num) { out += span('number', num[0]); i += num[0].length; continue; }
+    if (num) { out += span('number', num[0]); i += num[0].length; prev = 'value'; continue; }
     const word = text.slice(i).match(/^[A-Za-z_$][\w$]*/);
     if (word) {
       const w = word[0];
-      if (keywords.has(family === 'sql' ? w.toLowerCase() : w)) out += span('keyword', w);
-      else if (/^(true|false|null|undefined|nil|None|True|False)$/i.test(w)) out += span('literal', w);
+      // obj.get や obj.delete のように . の後ろにある名前は、予約語と同じつづりでもプロパティ名
+      const property = js && prev === '.';
+      if (!property && keywords.has(family === 'sql' ? w.toLowerCase() : w)) { out += span('keyword', w); prev = w; }
+      else if (!property && (LITERALS[family] || LITERALS.default).test(w)) { out += span('literal', w); prev = 'value'; }
       else {
         const tail = text.slice(i + w.length);
-        out += /^\s*\(/.test(tail) ? span('function', w) : escapeHtml(w);
+        out += linked(i, w.length, /^\s*\(/.test(tail) ? span('function', w) : escapeHtml(w));
+        prev = 'value';
       }
       i += w.length; continue;
     }
+    if (!/\s/.test(ch)) prev = ch === '>' && text[i - 1] === '=' ? '=>' : ch;
     out += escapeHtml(ch); i++;
   }
   return out;
