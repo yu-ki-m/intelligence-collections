@@ -392,7 +392,7 @@ async function main() {
     }
     out.push('');
     out.push(`### 変更箇所からさかのぼった入口の候補（名前の一致で呼び出し元を ${TRACE_DEPTH} 段までたどった推定。${TRIGGER_LIMIT} 件まで）`, '');
-    out.push('順路はこの中の入口（きっかけ）から始め、変更箇所まで実行される順に並べる。経路は「入口側 → … → 変更箇所」の順。', '');
+    out.push('順路はこの中の入口（きっかけ）から始め、変更箇所まで実行される順に並べる。変更箇所にたどり着くと確かめた入口は、全部ステップ（kind: "entry"）にする（入口ごとにルートになる）。経路は「入口側 → … → 変更箇所」の順。', '');
     const found = [...triggers.values()];
     if (!found.length) out.push('見つからない。変更箇所の呼び出し元をコードで読んでさかのぼる（DI・イベント・動的な呼び出しでは名前がつながらない）。');
     for (const t of found.slice(0, TRIGGER_LIMIT)) out.push(`- ${t.at}: ${clip(t.text.replace(/\s+/g, ' '), 110)}（経路: ${[...t.chain].reverse().join(' → ')}）`);
@@ -415,7 +415,7 @@ async function main() {
   out.push('');
   out.push('## 次にやること', '');
   out.push('1. 上の変更行・呼び出し候補・入口の候補を起点に、必要な範囲だけを読む（候補は名前の一致による推定。呼び出し関係はコードで確かめる）。');
-  out.push(`   順路は入口（ボタン操作・画面の初期表示・エンドポイントなど、処理のきっかけ）から始め、実行される順に並べる。${diff ? '差分でも変更箇所から始めず、「変更箇所からさかのぼった入口の候補」を確かめて、入口から変更箇所までをつなぐ。' : ''}`);
+  out.push(`   順路は入口（ボタン操作・画面の初期表示・エンドポイントなど、処理のきっかけ）から始め、実行される順に並べる。対象にたどり着く入口は全部ステップにする（入口ごとにルートになる）。${diff ? '差分でも変更箇所から始めず、「変更箇所からさかのぼった入口の候補」を確かめて、入口から変更箇所までをつなぐ。' : ''}`);
   if (reviewGuess) out.push(`   レビュー依頼なら、順路の各ステップの関数全体${diff ? 'と、上の「変更を含む関数」すべて' : ''}を読み、references/guide-format.md の「確かめる観点」を全部確かめる。件数の目安は無い。見つけたものは全部書く。`);
   out.push('2. guide.json に steps・notes・summary を書く（書式は references/guide-format.md）。');
   out.push(`3. node "${toPosix(path.join(here, 'build-guide.mjs'))}" --root "${toPosix(root)}" --name "${name}" を実行し、エラーが出たら guide.json を直して再実行する。`);

@@ -61,12 +61,13 @@ function parsePath(raw) {
 }
 
 function newEntry(status = 'M') {
-  return { status, path: null, oldPath: null, added: new Set(), modified: new Set(), deleted: new Map(), hunks: [], plus: 0, minus: 0, binary: false };
+  return { status, path: null, oldPath: null, added: new Set(), modified: new Set(), deleted: new Map(), oldText: new Map(), hunks: [], plus: 0, minus: 0, binary: false };
 }
 
 // -U0 の統一diffを解析する。変更行は新しい版の行番号で持つ。
 // 同じハンク内で削除と追加が両方ある行は「変更」、追加だけの行は「追加」とする。
 // 削除された行は、新しい版のどの行の直前に表示するか(行番号)をキーにして持つ。
+// 「変更」の行は、対になる変更前の行(ハンク内で同じ順番の削除行)を oldText に持つ。
 export function parseUnifiedDiff(out) {
   const files = new Map();
   const lines = out.split('\n');
@@ -119,6 +120,7 @@ export function parseUnifiedDiff(out) {
       cur.minus += dels.length;
       const modCount = Math.min(adds.length, dels.length);
       for (let k = 0; k < adds.length; k++) (k < modCount ? cur.modified : cur.added).add(newStart + k);
+      for (let k = 0; k < modCount; k++) cur.oldText.set(newStart + k, dels[k]);
       if (dels.length) {
         const before = adds.length ? newStart : newStart + 1;
         cur.deleted.set(before, [...(cur.deleted.get(before) || []), ...dels]);
