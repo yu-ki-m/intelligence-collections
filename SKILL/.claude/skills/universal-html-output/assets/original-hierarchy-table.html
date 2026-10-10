@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>汎用HTMLレポート</title>
+<title>汎用・階層テーブル HTMLテンプレート</title>
 <style>
 :root {
   --bg: #f4f5f7; --surface: #ffffff; --surface-2: #f0f2f5; --border: #dfe3e8; --border-strong: #c6ccd5;
@@ -61,9 +61,9 @@ body {
 .legend { padding: 0 24px 10px; font-size: 12.5px; color: var(--muted); }
 main { padding: 0 24px 32px; }
 .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow-x: auto; }
-.tree { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 13px; }
-.tree th, .tree td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid var(--border); }
-.tree th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
+table { width: 100%; min-width: 1100px; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; vertical-align: top; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+th { background: var(--surface-2); color: var(--muted); font-weight: 600; font-size: 12px; white-space: nowrap; }
 .nowrap { white-space: nowrap; }
 .num { font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); }
@@ -180,15 +180,7 @@ body.is-resizing-columns { cursor: col-resize; user-select: none; }
   padding-left: calc(var(--depth-indent) + 10px);
   background: var(--depth-background);
 }
-
-/* 追加レイアウトは階層テーブルに影響させない。 */
-.table-section { margin: 0 0 22px; }
-.table-section > h2 { margin: 0 0 9px; font-size: 16px; line-height: 1.5; }
-.table-intro { color: var(--muted); margin: 0 0 10px; }
-.sample-banner:empty, .legend:empty, .head-meta:empty { display: none; }
-/* 自由HTMLの内側には見出し・カード・図表など任意のCSS/JSを記述できる。 */
 </style>
-<!-- INJECT_HEAD_HTML -->
 </head>
 <body>
 <div class="sample-banner"></div>
@@ -198,11 +190,144 @@ body.is-resizing-columns { cursor: col-resize; user-select: none; }
 </header>
 <div class="legend"></div>
 <main>
-<!-- INJECT_CONTENT_BLOCKS -->
+  <div class="panel">
+    <table class="tree">
+      <thead><tr></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
 </main>
 <script>
 "use strict";
-<!-- INJECT_PAGE_DATA -->
+/* ======================================================================
+ * 汎用HTMLテンプレート。変更する箇所は TEMPLATE の定義だけです。
+ *
+ * columns: 列の名前・列数・表示形式を定義（初期幅の固定値なし）。
+ *     表示時はテーブル幅を表示領域に合わせて自動調整します。
+ *     各列の右端をドラッグすると幅を変更できます。
+ *     列の右端をダブルクリックすると、全列が自動幅に戻ります。
+ *     name は階層付きの項目名を表示する列として利用します。
+ *     残りの列は用途に応じて自由に変更できます。
+ * rows: children で任意の深さの階層を定義。
+ *     children がある行は分類見出し、ない行はデータ行です。
+ *     行番号は同じ階層の中で自動的に 1., 2., ... と採番します。
+ * cells: columns の key と一致する名前で内容を指定します。
+ *     タイトル / バナー / 上部情報 / 注記 / 列名 / 分類名 / 項目名 /
+ *     セル / ラベル / 参照タグの表示テキストは次の2形式に対応します。
+ *
+ *     1. 通常のテキスト: "文章\n次の行" または { text: "文章" }
+ *        HTMLタグに見える文字もそのまま文字列として表示します。
+ *     2. リッチHTML: { html: "<strong>太字</strong> ..." }
+ *        HTMLで太字・色・リンク・リスト・コード・改行などを記述できます。
+ *        赤字は <span class='rich-red'>赤字</span> も利用できます。
+ *        HTML内の改行は <br>、段落は <p> を使用します。
+ *     両方とも長文はセル幅に応じて自動折り返しされます。
+ *
+ *     ⚠ { html: ... } は信頼できるHTMLだけに使用してください。
+ *       外部から取得した文字列には通常のテキスト形式を用い、
+ *       不特定ユーザーのHTMLを利用する際はサニタイズが必要です。
+ *
+ * kind（任意）: badge（ラベル）、chips（複数の参照タグ）。
+ * スタイルは表示上の選択肢であり、特定業務への意味づけはありません。
+ * ====================================================================== */
+const TEMPLATE = {
+  title: "【タイトル】", // title: { html: "<strong>タイトル</strong>" } も可能
+  banner: { html: "HTMLテンプレート：<strong>太字</strong>・<span class='rich-red'>赤字</span>などの装飾と、通常の文字列を併用できます。" },
+  meta: [
+    { label: "情報①", value: "【通常のテキスト】" },
+    { label: "情報②", value: { html: "【<strong>太字</strong>の値】" } },
+    { label: { html: "<em>情報③</em>" }, value: "【任意の情報】" }
+  ],
+  legend: { html: "入力例：通常の文字列／<strong>太字</strong>／<span class='rich-red'>赤字</span>／<em>斜体</em>／<mark>強調</mark>／<code>コード</code>。リッチ表現は { html: '...' }、通常文は文字列で指定します。" },
+  // すべて汎用の列名。列幅は自動計算し、利用者が後から変更できます。
+  // 列名と列数は自由に変更可能。ラベルと参照は右端に配置しています。
+  columns: [
+    { key: "name", label: "項目" },
+    { key: "content1", label: "内容1" },
+    { key: "content2", label: { html: "内容<strong>2</strong>" } },
+    { key: "label", label: "ラベル", kind: "badge" },
+    { key: "refs", label: "参照", kind: "chips" }
+  ],
+  // name に番号を含める必要はありません。各階層で 1., 2., ... を自動で付けます。
+  rows: [
+    {
+      name: { html: "【<strong>分類名</strong>】 <span class='rich-red'>【補足】</span>" },
+      children: [
+        {
+          name: "【小分類名・1行目】\n【小分類名・2行目】",
+          children: [
+            {
+              name: "【項目名（1行目）】\n【項目名（2行目）】",
+              cells: {
+                content1: { html: "通常の文章と<strong>太字</strong>、<span class='rich-red'>赤字</span>、<em>斜体</em>、<mark>ハイライト</mark>を混在できます。<br>ここで明示的に改行します。" },
+                content2: { html: "<p>段落・リストも利用可能です。</p><ul><li>項目A</li><li><strong>項目B</strong></li></ul><p>インラインコード：<code>sample()</code></p>" },
+                label: { text: { html: "<strong>ラベルA</strong>\n補足" }, style: "st-done" },
+                refs: [{ text: { html: "<strong>REF-001</strong>\n補足" }, style: "j-ok", title: "【参照情報】" }]
+              }
+            },
+            {
+              name: { html: "【<strong>別の項目名</strong>】<br><span class='rich-red'>【赤い説明】</span>" },
+              cells: {
+                content1: "【通常のテキスト】\n【改行もそのまま反映されます】",
+                content2: { html: "<a href='https://developer.mozilla.org/ja/docs/Web/HTML' target='_blank' rel='noopener noreferrer'>リンク</a>／<u>下線</u>／<del>取り消し線</del>" },
+                label: { text: "ラベルB", style: "st-wip" },
+                refs: [
+                  { text: "REF-002", style: "j-defect", title: "【参照情報】" },
+                  { text: "REF-003", style: "j-undef", title: "【参照情報】" }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          name: "【別の小分類名】",
+          children: [
+            {
+              name: "【第3階層の分類名】",
+              children: [
+                {
+                  name: "【第4階層の分類名】",
+                  children: [
+                    {
+                      name: "【深い階層の項目名】",
+                      cells: {
+                        content1: "【内容1を入力】",
+                        content2: { html: "【階層数に上限はありません】<br><blockquote>引用文も記述できます。</blockquote>" },
+                        label: { text: "ラベルC", style: "st-todo" },
+                        refs: [{ text: "REF-004", style: "j-pending", title: "【参照情報】" }]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      name: "【別の分類名】",
+      children: [
+        {
+          name: "【小分類名】",
+          children: [
+            {
+              name: "【項目名】",
+              cells: {
+                content1: "【内容1を入力】",
+                content2: "【内容2を入力】",
+                label: { text: "ラベルD", style: "d-light" },
+                refs: [{ text: "REF-005", style: "j-na", title: "【参照情報】" }]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+};
+
+/* ここから下は表示処理。通常は変更不要です。 */
 const el = (tag, cls, text) => {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
@@ -333,23 +458,23 @@ function renderRows(nodes, depth, body, columns) {
  * これにより左側の列の開始位置を動かさず、右側にも空白を残しません。
  */
 const COLUMN_MIN_WIDTH = 70;
-function readWidths(storeKey) {
+const WIDTH_STORE_KEY = `hierarchy-table-widths-auto-v2:${location.pathname}:${document.title}`;
+function readWidths() {
   try {
-    const json = localStorage.getItem(storeKey);
+    const json = localStorage.getItem(WIDTH_STORE_KEY);
     const obj = json ? JSON.parse(json) : {};
     return obj && typeof obj === "object" && !Array.isArray(obj) ? obj : {};
   } catch (_) { return {}; }
 }
-function writeWidths(storeKey, obj) {
-  try { localStorage.setItem(storeKey, JSON.stringify(obj)); }
+function writeWidths(obj) {
+  try { localStorage.setItem(WIDTH_STORE_KEY, JSON.stringify(obj)); }
   catch (_) { /* ローカルHTMLなどでは保持できない場合がある */ }
 }
-function clearWidths(storeKey) {
-  try { localStorage.removeItem(storeKey); }
+function clearWidths() {
+  try { localStorage.removeItem(WIDTH_STORE_KEY); }
   catch (_) { /* 閲覧中の変更は可能 */ }
 }
-function installColumnResizers(table, columns, head, tableId) {
-  const storeKey = `hierarchy-table-widths-auto-v3:${location.pathname}:${document.title}:${tableId}`;
+function installColumnResizers(table, columns, head) {
   const oldGroup = table.querySelector("colgroup");
   if (oldGroup) oldGroup.remove();
   const group = el("colgroup");
@@ -359,7 +484,7 @@ function installColumnResizers(table, columns, head, tableId) {
     group.append(col);
     return col;
   });
-  const saved = readWidths(storeKey);
+  const saved = readWidths();
   let widths = columns.map(col => Number(saved[col.key]));
   const savedAll = widths.every(w => Number.isFinite(w) && w >= COLUMN_MIN_WIDTH);
 
@@ -368,7 +493,7 @@ function installColumnResizers(table, columns, head, tableId) {
     cols.forEach(col => col.style.removeProperty("width"));
     table.style.removeProperty("width");
     table.style.tableLayout = "auto";
-    clearWidths(storeKey);
+    clearWidths();
   }
   function measure() {
     return Array.from(head.children, th => Math.round(th.getBoundingClientRect().width));
@@ -391,7 +516,7 @@ function installColumnResizers(table, columns, head, tableId) {
   }
   function persist() {
     if (!widths) return;
-    writeWidths(storeKey, Object.fromEntries(columns.map((col, index) => [col.key, widths[index]])));
+    writeWidths(Object.fromEntries(columns.map((col, index) => [col.key, widths[index]])));
   }
   if (savedAll) syncWidths();
   else autoLayout();
@@ -460,42 +585,30 @@ function installColumnResizers(table, columns, head, tableId) {
   }
 }
 
-function renderPage(page, tables) {
-  document.title = plainRichText(page.title || "HTMLレポート");
-  renderRich(document.querySelector(".sample-banner"), page.banner || "");
-  renderRich(document.querySelector(".head h1"), page.title || "");
+function renderTemplate(data) {
+  document.title = plainRichText(data.title || "HTMLテンプレート");
+  renderRich(document.querySelector(".sample-banner"), data.banner || "");
+  renderRich(document.querySelector(".head h1"), data.title || "");
   const meta = document.querySelector(".head-meta");
   meta.replaceChildren();
-  for (const item of page.meta || []) {
+  for (const item of data.meta || []) {
     const span = el("span");
     span.append(renderRich(el("b"), item.label || ""));
     span.append(renderRich(el("span"), item.value || ""));
     meta.append(span);
   }
-  renderRich(document.querySelector(".legend"), page.legend || "");
-  for (const entry of tables) {
-    // data-table-id uniquely identifies independent table width state.
-    const section = document.querySelector(`[data-table-id="${CSS.escape(entry.id)}"]`);
-    if (!section) throw Error(`missing table container: ${entry.id}`);
-    const titleEl = section.querySelector(".table-title");
-    if (titleEl) renderRich(titleEl, entry.title || "");
-    const introEl = section.querySelector(".table-intro");
-    if (introEl) renderRich(introEl, entry.intro || "");
-    const table = section.querySelector("table.tree");
-    const columns = entry.columns;
-    const head = table.tHead.rows[0];
-    head.replaceChildren();
-    for (const col of columns) head.append(renderRich(el("th"), col.label || col.key));
-    const body = table.tBodies[0];
-    body.replaceChildren();
-    renderRows(entry.rows || [], 0, body, columns);
-    // Install after row content: automatic width measures the completed table.
-    installColumnResizers(table, columns, head, entry.id);
-  }
+  renderRich(document.querySelector(".legend"), data.legend || "");
+  const columns = Array.isArray(data.columns) && data.columns.length ? data.columns : [{key:"name",label:"項目"}];
+  const head = document.querySelector(".tree thead tr");
+  head.replaceChildren();
+  for (const col of columns) head.append(renderRich(el("th"), col.label || col.key));
+  installColumnResizers(document.querySelector(".tree"), columns, head);
+  const body = document.querySelector(".tree tbody");
+  body.replaceChildren();
+  renderRows(data.rows || [], 0, body, columns);
 }
 
-renderPage(PAGE_DATA, TABLES_DATA);
+renderTemplate(TEMPLATE);
 </script>
-<!-- INJECT_TAIL_HTML -->
 </body>
 </html>

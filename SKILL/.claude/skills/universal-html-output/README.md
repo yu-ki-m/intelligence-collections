@@ -1,52 +1,58 @@
-# universal-html-output — Claude Code Skill
+# Universal HTML Output — Claude Code Skill
 
-**任意の入力を読み、指示された内容をオリジナルの階層テーブルHTMLレイアウトで出力するSkill** です。
+**任意の入力から任意のHTML成果物を作成するためのSkill**。従来の階層テーブルの見た目を維持したまま、複数の表、自由なHTML、SVG、CSS、JavaScript、フォーム、カード等を任意の順序で組み合わせられます。テーブルを使わない出力も可能です。
 
-## インストール
+## 導入
 
-プロジェクトで使う場合：
-
-```text
-<プロジェクト>/.claude/skills/universal-html-output/
-    SKILL.md
-    assets/template.html
-    scripts/render.py
-    references/data-contract.md
-    examples/example.json
-```
-
-ZIPを解凍して `universal-html-output` フォルダごと `.claude/skills/` に置いてください。
-全プロジェクトで使うなら `~/.claude/skills/universal-html-output/` に置きます。
-
-## 使用例
+ZIPを解凍し、`universal-html-output` フォルダごと、対象プロジェクトの `.claude/skills/` に配置してください。全プロジェクトに使う場合は `~/.claude/skills/` に配置します。
 
 ```text
-/universal-html-output このディレクトリにある要求仕様書を読み、要求ごとの実装方針、検証観点、参照資料を階層HTMLに整理して output/requirements.html に保存
+.claude/skills/universal-html-output/
+├── SKILL.md
+├── assets/
+│   ├── template.html                  # 複数表＋自由HTML用のページ枠
+│   └── original-hierarchy-table.html  # 元の階層表デザイン参照
+├── scripts/render.py                  # JSON → HTML（標準ライブラリのみ）
+├── references/data-contract.md
+├── examples/
+│   ├── mixed-report.json              # 自由HTML + 2表 + SVG + JS
+│   ├── html-only.json                 # 表を一切使わない出力
+│   ├── html-file.json                 # html_file の例
+│   └── html-fragment.html
+└── tests/test_render.py
+```
+
+## Claude Codeでの使用例
+
+```text
+/universal-html-output このフォルダの資料を調べ、冒頭に図と要点、
+各観点ごとに別々の表、最後に補足を加えたHTMLレポートを作成して。
 ```
 
 ```text
-/universal-html-output git diff を分析し、変更点と影響範囲、注意点を区分したHTMLレポートにして
+/universal-html-output 現在のリポジトリのアーキテクチャを、
+任意のHTMLとSVGで可視化して。テーブルが不要なら使わないで。
 ```
 
 ```text
-/universal-html-output 以下の議事録を決定事項・保留事項・タスクに整理してHTML化: ...
+/universal-html-output git diff を分析し、変更概要・関係図・影響一覧と
+推奨アクションを1ページにまとめて。表の列は必要に応じて決めて。
 ```
 
-## データから直接レンダリング
+## CLI
 
 ```bash
-python3 .claude/skills/universal-html-output/scripts/render.py --input .claude/skills/universal-html-output/examples/example.json --validate-only
-python3 .claude/skills/universal-html-output/scripts/render.py --input .claude/skills/universal-html-output/examples/example.json --output output/demo.html
+python3 .claude/skills/universal-html-output/scripts/render.py \
+  -i .claude/skills/universal-html-output/examples/mixed-report.json --validate-only
+python3 .claude/skills/universal-html-output/scripts/render.py \
+  -i .claude/skills/universal-html-output/examples/mixed-report.json -o report.html
+python3 -m unittest discover -s .claude/skills/universal-html-output/tests -v
 ```
 
-Python 3.10以降の標準ライブラリのみを使用します。単体HTMLなので表示にネット接続は不要です。
+- 入力形式は `blocks` 配列。`type: "html"` と `type: "table"` が混在できる。
+- 表は1つずつ独立した列数・階層・列幅を持つ。ブラウザの列幅操作は保持。
+- `type: "html"`、`head_html`、`tail_html`、`html_file` は完全に **信頼できるコード向け**。外部やユーザーの任意入力はそのまま実行HTMLにしない。
+- CSS/JSをインラインにすれば単一HTMLで閲覧可能。外部リソースには別途ネットワークやファイルが必要。
+- 旧形式 `title` + `columns` + `rows` も1表として受け付ける（互換用）。
 
-## 画面の動作
-
-- 初期列幅は画面に合わせた自動幅。
-- 列ヘッダー右端をドラッグして幅変更。縮小時も左側列の位置は動きません。
-- 列ヘッダー右端をダブルクリックで全列自動幅に戻します。
-- ブラウザのローカルストレージ利用が可能なら列幅を保存します。
-- HTMLの装飾はJSONの `{ "html": "..." }`、通常文は文字列として指定します。
-
-詳細は `SKILL.md` と `references/data-contract.md` を参照してください。
+詳しい契約と例は `references/data-contract.md` を参照してください。

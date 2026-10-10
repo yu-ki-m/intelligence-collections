@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
-"""Render JSON data into the supplied, original HTML template, without rewriting layout code.
+"""Render arbitrary trusted HTML blocks and independent original-layout tables.
 
-Python standard library only. The source template under assets/template.html is retained unchanged.
+Python standard library only. Do not run untrusted raw HTML/JavaScript.
 """
 from __future__ import annotations
 
 import argparse
-import copy
 import html
 from html.parser import HTMLParser
 import json
@@ -18,9 +17,6 @@ from urllib.parse import urlsplit
 ROOT = Path(__file__).resolve().parent.parent
 TEMPLATE = ROOT / "assets" / "template.html"
 # Scope replacement to the constant immediately before the known renderer-start marker.
-DATA_RE = re.compile(
-    r"(?ms)^const TEMPLATE = \{.*?^\};\s*(?=/\* ここから下は表示処理。通常は変更不要です。 \*/)"
-)
 ALLOWED_STYLES = {
     "d-light", "d-focus", "d-undecided", "st-done", "st-wip", "st-todo",
     "j-ok", "j-defect", "j-undef", "j-pending", "j-na",
@@ -308,45 +304,190 @@ def normalize_data(data: dict) -> tuple[dict, dict]:
     return result, metrics
 
 
-def embed(template: str, data: dict) -> str:
-    # HTML's script parser terminates at </script> regardless of JS string quoting.
-    # Escaping markup in the serialized JSON prevents premature script closure.
+
+# Raw HTML is intentionally not sanitized. It is a separate explicit, trusted
+# authoring channel. All rich HTML inside table text cells remains sanitized.
+INJECTION_RE = re.compile(r"<!-- INJECT_(HEAD_HTML|CONTENT_BLOCKS|PAGE_DATA|TAIL_HTML) -->")
+TABLE_ID_RE = re.compile(r"[A-Za-z][A-Za-z0-9_-]*\Z")
+
+
+def raw_fragment(block: dict, where: str, base_dir: Path) -> str:
+    choices = ("html" in block) + ("html_file" in block)
+    if choices != 1:
+        raise ValidationError(f"{where}: html または html_file をちょうど1つ指定してください")
+    if "html" in block:
+        if not isinstance(block["html"], str):
+            raise ValidationError(f"{where}.html は文字列が必要です")
+        return block["html"]
+    path = block["html_file"]
+    if not isinstance(path, str) or not path:
+        raise ValidationError(f"{where}.html_file はファイルパス文字列が必要です")
+    # Restrict reading to paths under the input JSON's directory, so a fetched
+    # untrusted JSON cannot arbitrarily load files elsewhere on disk.
+    rel = Path(path)
+    if rel.is_absolute() or not (base_dir / rel).resolve().is_relative_to(base_dir.resolve()):
+        raise ValidationError(f"{where}.html_file は入力JSONのあるフォルダ以下の相対パスにしてください")
+    try:
+        return (base_dir / rel).read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as ex:
+        raise ValidationError(f"{where}.html_file を読み込めません: {ex}") from ex
+
+
+def normalize_document(data: dict, base_dir: Path) -> tuple[dict, list[dict], dict]:
+    if not isinstance(data, dict):
+        raise ValidationError("root: JSONオブジェクトが必要です")
+    object_keys(data, {"title", "banner", "legend", "meta", "blocks", "columns", "rows", "head_html", "tail_html"}, "root")
+    if "title" not in data:
+        raise ValidationError("root.title が必要です")
+    page = {
+        "title": rich(data["title"], "root.title"),
+        "banner": rich(data.get("banner", ""), "root.banner"),
+        "legend": rich(data.get("legend", ""), "root.legend"),
+        "meta": [],
+    }
+    if not isinstance(data.get("head_html", ""), str) or not isinstance(data.get("tail_html", ""), str):
+        raise ValidationError("root.head_html / tail_html はHTML文字列で指定してください")
+    head_html = data.get("head_html", "")
+    tail_html = data.get("tail_html", "")
+    meta = data.get("meta", [])
+    if not isinstance(meta, list):
+        raise ValidationError("root.meta は配列で指定してください")
+    for i, m in enumerate(meta):
+        if not isinstance(m, dict) or set(m) != {"label", "value"}:
+            raise ValidationError(f"root.meta[{i}]: label と value を指定してください")
+        page["meta"].append({
+            "label": rich(m["label"], f"root.meta[{i}].label"),
+            "value": rich(m["value"], f"root.meta[{i}].value"),
+        })
+    if "blocks" in data:
+        if "columns" in data or "rows" in data:
+            raise ValidationError("root: blocks と旧形式の columns/rows は同時には指定できません")
+        blocks = data["blocks"]
+    else:
+        if "columns" not in data or "rows" not in data:
+            raise ValidationError("root.blocks、または従来形式の columns と rows が必要です")
+        blocks = [{"type": "table", "columns": data["columns"], "rows": data["rows"]}]
+    if not isinstance(blocks, list) or not blocks:
+        raise ValidationError("root.blocks は1つ以上のブロックを持つ配列です")
+
+    normalized_blocks = []
+    tables = []
+    table_ids = set()
+    stats = {"blocks": len(blocks), "tables": 0, "html_blocks": 0, "rows": 0, "groups": 0, "leaves": 0, "depth": 0}
+    for index, block in enumerate(blocks):
+        at = f"root.blocks[{index}]"
+        if not isinstance(block, dict):
+            raise ValidationError(f"{at}: オブジェクトが必要です")
+        kind = block.get("type")
+        if kind == "html":
+            object_keys(block, {"type", "html", "html_file"}, at)
+            normalized_blocks.append({"type": "html", "html": raw_fragment(block, at, base_dir)})
+            stats["html_blocks"] += 1
+        elif kind == "table":
+            object_keys(block, {"type", "id", "title", "intro", "columns", "rows"}, at)
+            table_id = block.get("id", f"table-{stats['tables']+1}")
+            if not isinstance(table_id, str) or not TABLE_ID_RE.fullmatch(table_id):
+                raise ValidationError(f"{at}.id: 英数字とハイフン/アンダースコアからなるIDが必要です")
+            if table_id in table_ids:
+                raise ValidationError(f"{at}.id: 重複ID {table_id!r}")
+            table_ids.add(table_id)
+            if "columns" not in block or "rows" not in block:
+                raise ValidationError(f"{at}: columns と rows が必要です")
+            normalized, m = normalize_data({
+                "title": block.get("title", ""),
+                "columns": block["columns"],
+                "rows": block["rows"],
+            })
+            table = {
+                "id": table_id,
+                "title": normalized["title"],
+                "intro": rich(block.get("intro", ""), at + ".intro"),
+                "columns": normalized["columns"],
+                "rows": normalized["rows"],
+            }
+            tables.append(table)
+            normalized_blocks.append({"type": "table", "id": table_id, "has_title": "title" in block, "has_intro": "intro" in block})
+            stats["tables"] += 1
+            stats["rows"] += m["rows"]
+            stats["groups"] += m["groups"]
+            stats["leaves"] += m["leaves"]
+            stats["depth"] = max(stats["depth"], m["depth"])
+        else:
+            raise ValidationError(f"{at}.type: 'table' または 'html' にしてください")
+    return {"page": page, "blocks": normalized_blocks, "head_html": head_html, "tail_html": tail_html}, tables, stats
+
+
+def js_literal(data) -> str:
     payload = json.dumps(data, ensure_ascii=False, indent=2)
-    for ch, val in (("<", "\\u003c"), (">", "\\u003e"), ("&", "\\u0026"), ("\u2028", "\\u2028"), ("\u2029", "\\u2029")):
+    # Escape < > & and line separators to avoid breaking out of script raw text.
+    for ch, val in (("<", "\\u003c"), (">", "\\u003e"), ("&", "\\u0026"),
+                    ("\u2028", "\\u2028"), ("\u2029", "\\u2029")):
         payload = payload.replace(ch, val)
-    replacement = f"const TEMPLATE = {payload};\n\n"
-    merged, count = DATA_RE.subn(lambda _m: replacement, template)
-    if count != 1:
-        raise ValidationError("テンプレートのデータ領域を特定できません。元のHTMLが改変されている可能性があります")
-    return merged
+    return payload
+
+
+def embed(template: str, document: dict, tables: list[dict]) -> str:
+    content = []
+    for block in document["blocks"]:
+        if block["type"] == "html":
+            content.append(block["html"])
+        else:
+            bid = html.escape(block["id"], quote=True)
+            heading = '<h2 class="table-title rich-content"></h2>' if block["has_title"] else ""
+            intro = '<div class="table-intro rich-content"></div>' if block["has_intro"] else ""
+            content.append(
+                f'<section class="table-section" data-table-id="{bid}">'
+                f'{heading}{intro}'
+                '<div class="panel"><table class="tree"><thead><tr></tr></thead>'
+                '<tbody></tbody></table></div></section>'
+            )
+    replacements = {
+        "HEAD_HTML": document["head_html"],
+        "CONTENT_BLOCKS": "\n".join(content),
+        "PAGE_DATA": f"const PAGE_DATA = {js_literal(document['page'])};\nconst TABLES_DATA = {js_literal(tables)};",
+        "TAIL_HTML": document["tail_html"],
+    }
+    counts = {k: 0 for k in replacements}
+    def substitute(match):
+        name = match.group(1)
+        counts[name] += 1
+        return replacements[name]
+    result = INJECTION_RE.sub(substitute, template)
+    if any(n != 1 for n in counts.values()):
+        raise ValidationError(f"テンプレートの挿入ポイントが不正です: {counts}")
+    return result
 
 
 def main(argv=None) -> int:
-    parser = argparse.ArgumentParser(description="元の階層HTMLレイアウトを保ったHTMLを生成する")
-    parser.add_argument("--input", "-i", required=True, help="JSONファイルのパス（標準入力は -）")
-    parser.add_argument("--output", "-o", help="出力HTMLのパス（--validate-only の場合は省略可）")
-    parser.add_argument("--validate-only", action="store_true", help="構造とHTMLの検証のみ実行")
-    parser.add_argument("--overwrite", action="store_true", help="既存の出力HTMLを明示的に上書き")
+    parser = argparse.ArgumentParser(description="任意HTMLと複数の独立した階層テーブルを結合する")
+    parser.add_argument("--input", "-i", required=True, help="入力JSONパス")
+    parser.add_argument("--output", "-o", help="出力HTMLパス")
+    parser.add_argument("--validate-only", action="store_true", help="JSONと挿入処理を検証")
+    parser.add_argument("--overwrite", action="store_true", help="既存成果物の上書きを許可")
     args = parser.parse_args(argv)
     try:
-        raw = sys.stdin.read() if args.input == "-" else Path(args.input).read_text(encoding="utf-8-sig")
-        data, metrics = normalize_data(json.loads(raw))
-        template = TEMPLATE.read_text(encoding="utf-8")
-        generated = embed(template, data)
+        if args.input == "-":
+            source, base_dir = sys.stdin.read(), Path.cwd()
+        else:
+            inpath = Path(args.input).expanduser().resolve()
+            source, base_dir = inpath.read_text(encoding="utf-8-sig"), inpath.parent
+        doc, tables, stats = normalize_document(json.loads(source), base_dir)
+        output = embed(TEMPLATE.read_text(encoding="utf-8"), doc, tables)
         if not args.validate_only:
             if not args.output:
-                raise ValidationError("--output で出力先を指定してください")
+                raise ValidationError("--output が必要です")
             dest = Path(args.output).expanduser().resolve()
-            if dest == TEMPLATE.resolve():
-                raise ValidationError("assets/template.html は上書き禁止です")
+            if dest in {TEMPLATE.resolve(), ROOT / "assets" / "original-hierarchy-table.html"}:
+                raise ValidationError("スキルの付属テンプレートを上書きできません")
             if dest.exists() and not args.overwrite:
-                raise ValidationError(f"出力先が存在します: {dest}（上書きする場合は --overwrite）")
+                raise ValidationError(f"出力先が存在します: {dest}（上書きには --overwrite）")
             dest.parent.mkdir(parents=True, exist_ok=True)
-            dest.write_text(generated, encoding="utf-8")
+            dest.write_text(output, encoding="utf-8")
             print(f"CREATED {dest}")
-        print(f"VALID: {metrics['rows']} 行 / {metrics['groups']} 分類 / {metrics['leaves']} 項目 / 最大 {metrics['depth']} 階層 / {len(data['columns'])} 列")
+        print(f"VALID: {stats['blocks']} ブロック / {stats['tables']} テーブル / {stats['html_blocks']} 自由HTML / "
+              f"{stats['rows']} 行 / 最大 {stats['depth']} 階層")
         return 0
-    except (OSError, ValidationError, json.JSONDecodeError) as e:
+    except (OSError, UnicodeError, ValidationError, json.JSONDecodeError) as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 

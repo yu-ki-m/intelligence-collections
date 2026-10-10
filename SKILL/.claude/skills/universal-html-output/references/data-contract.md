@@ -1,80 +1,127 @@
-# データ契約 — JSON → 汎用階層テーブルHTML
+# データ契約 — 任意HTMLブロック + 独立した階層テーブル
 
-## トップレベル
+## 概要
 
-必須：`title`, `columns`, `rows`。任意：`banner`, `legend`, `meta`。
+最上位にページ設定と、順序付きの **`blocks`** を置く。
 
 ```json
 {
-  "title": "資料タイトル",
-  "banner": "サンプルまたは注意点（省略可）",
-  "meta": [{"label": "作成対象", "value": "全体"}],
-  "legend": "読み方、定義、制約事項",
-  "columns": [
-    {"key": "name", "label": "項目"},
-    {"key": "content1", "label": "内容1"},
-    {"key": "content2", "label": "内容2"},
-    {"key": "label", "label": "ラベル", "kind": "badge"},
-    {"key": "refs", "label": "参照", "kind": "chips"}
+  "title": "レポート名",
+  "banner": "任意の注意表示",
+  "meta": [{"label":"対象", "value":"任意の情報"}],
+  "legend": "読み方",
+  "head_html": "<style>.my-card { border-radius: 8px; }</style>",
+  "blocks": [
+    {"type":"html", "html":"<p>普通の文章。<strong>太字</strong>や図も可能。</p>"},
+    {
+      "type":"table", "id":"comparison", "title":"比較一覧",
+      "columns":[
+        {"key":"name", "label":"項目"},
+        {"key":"summary", "label":"概要"},
+        {"key":"status", "label":"状態", "kind":"badge"}
+      ],
+      "rows":[{"name":"分類", "children":[
+        {"name":"選択肢A", "cells":{"summary":"文章\n2行目", "status":{"text":"確認済","style":"st-done"}}}
+      ]}]
+    },
+    {"type":"html", "html":"<div class='my-card'><svg viewBox='0 0 30 30'><circle cx='15' cy='15' r='12'/></svg></div>"},
+    {
+      "type":"table", "id":"notes", "title":"別表",
+      "columns":[{"key":"name", "label":"項目"}, {"key":"detail", "label":"詳細"}],
+      "rows":[{"name":"情報1","cells":{"detail":"例"}}]
+    }
   ],
-  "rows": [{
-    "name": "大分類",
-    "children": [{
-      "name": "小分類",
-      "children": [{
-        "name": "具体項目",
-        "cells": {
-          "content1": "普通の文字列\n改行も可能",
-          "content2": {"html": "<strong>太字</strong>、<span class='rich-red'>赤字</span><br>次の行"},
-          "label": {"text": "確認済", "style": "st-done"},
-          "refs": [{"text": "参照ID", "title": "参照内容", "style": "j-ok"}]
-        }
-      }]
-    }]
-  }]
+  "tail_html": "<script>console.log('ページの読み込み完了');</script>"
 }
 ```
 
-### 任意の階層
+## トップレベル
 
-- `rows` は配列。各行は `name` を持つ。
-- `children` が **1件以上**あれば分類行となり、下位の行へ再帰的に展開される。深さは特定値に固定しない（入力チェックは100階層まで）。
-- `children` がなければデータ行となる。`cells` は列の `key` を指定して値を置く。
-- 番号は表示時に自動採番。`1.`、`1.1.` 等を `name` に重複して書かない。兄弟順序は入力配列の順序。
-- 分類行は列を結合する仕様のため `cells` を同時に持たない。
-- 列は任意に増減可。先頭は必ず `{ "key": "name", "label": "任意の項目列名" }`。
-- `kind: "text"` は省略可。`kind: "badge"` と `kind: "chips"` を使う場合は通常列の右に、ラベル→参照の順。不要なら省略。
-- `columns[].key` は `[A-Za-z][A-Za-z0-9_]*`、重複不可。列幅の指定項目はない（初期幅は自動）。
+| フィールド | 必須 | 意味 |
+|---|---|---|
+| `title` | はい | ページタイトル（プレーンテキストまたは `{ "html": ... }`） |
+| `banner` / `legend` | いいえ | ページ上部の注意・凡例。省略すると表示しない |
+| `meta` | いいえ | ヘッダー情報 `[{"label":...,"value":...}]` |
+| `blocks` | はい（推奨） | 1個以上の `html` / `table` ブロックを順番に並べる |
+| `head_html` | いいえ | `<head>` に挿入する **未加工の任意HTML**（通常CSS、meta等） |
+| `tail_html` | いいえ | ページ本文とテーブル生成用スクリプトの後に挿入する **未加工の任意HTML**（通常JavaScript） |
 
-### テキスト値
+**テーブルは0個でよい**。`blocks` に `html` だけがあるページは有効。互換用として旧形式の `columns` + `rows` も受け付けるが、`blocks` と旧形式を同時に使用しない。
 
-どの文字列表示欄でも以下が使用可能。
+## 自由HTMLブロック
 
-| 指定 | 結果 |
+次のどちらか一方を指定する。
+
+```json
+{"type":"html", "html":"<section><h2>自由な表現</h2><p>文章</p></section>"}
+```
+
+```json
+{"type":"html", "html_file":"sections/interactive-dashboard.html"}
+```
+
+- `html`: HTML断片をそのまま `<main>` 内の指定位置に挿入する。HTML要素の種類に制限はない。CSS, JS, SVG, Canvas, iframe, forms, video, 一般のtable要素も対象。前後に独自のラッパーは付与しない。
+- `html_file`: 入力JSONを置いたディレクトリ以下の相対パスのみ。UTF-8のHTML断片をそのまま読み込む。大きなCSS/SVG/HTML等の管理に使える。
+- **明示的なraw HTMLであり、サニタイズしない。信頼できるコードだけ記述すること。** 外部から読み取った文章は、HTMLで表すときエスケープして挿入する。
+- 自前のインタラクション用JavaScriptは `tail_html` を推奨。HTML内の `<script>` も通常のブラウザ処理に従う。
+- `head_html` にCSS、`tail_html` にJSを入れるとコードを見通しやすくできる。どちらも任意のHTML断片として扱う。
+- `<html>` や `<body>` など文書全体のタグではなく、**その場所に置くHTML断片**を記述する（ページ殻はテンプレートが担当）。
+- 完全オフライン動作には、リソースをインライン埋め込みする必要がある。外部URLはそのまま残る。
+
+## 階層テーブルブロック
+
+```json
+{
+  "type":"table", "id":"unique-id", "title":"表のタイトル", "intro":"説明（任意）",
+  "columns":[
+    {"key":"name", "label":"項目"},
+    {"key":"content1", "label":"内容1"},
+    {"key":"content2", "label":"内容2"},
+    {"key":"label", "label":"ラベル", "kind":"badge"},
+    {"key":"refs", "label":"参照", "kind":"chips"}
+  ],
+  "rows":[
+    {"name":"大分類", "children":[
+      {"name":"任意の深さの子分類", "children":[
+        {"name":"項目名", "cells":{
+          "content1":"通常文\n改行も表示",
+          "content2":{"html":"<strong>太字</strong> と <span class='rich-red'>赤字</span>"},
+          "label":{"text":"進行中", "style":"st-wip"},
+          "refs":[{"text":"参照番号", "style":"j-ok", "title":"参照情報"}]
+        }}
+      ]}
+    ]}
+  ]
+}
+```
+
+- `id` は省略可能だが、表間で安定した列幅状態を保ちたい場合に **表ごとに異なる固定ID** を推奨。値は英数字および `-` `_`、先頭は英字。重複不可。省略時は `table-1`, `table-2`, ...。
+- 各表の `columns`、`rows`、`title`、`intro` は独立。2列の表も9列の表も混在可能。
+- `columns` と `rows` は必須。列は任意の個数。**先頭列の `key` は必ず `name`**。 `kind` は既定 `text`、`badge`、`chips` が使える。`badge` / `chips` がある場合は通常列の右側に、`badge` → `chips` の順番で置く。
+- `columns[].key` は英字開始、英数字と `_`。重複不可。
+- `children` が1件以上ある行は全列結合の分類行となり、その行では `cells` を使わない。子がない行はデータ行。最大100階層。各階層の兄弟で番号は自動的に `1.`, `2.` ... と採番。
+- 初期幅は表示領域に自動フィット。列ヘッダー端のドラッグで幅を変更、ダブルクリックで自動幅復帰。幅の変更は **表ごとに独立**。左側の列位置は他列を縮めても動かさない。
+
+### テーブル内の通常テキスト・リッチHTML
+
+| 記法 | 表現 |
 |---|---|
-| `"普通のテキスト"` | HTMLタグを解釈せず、文字として表示 |
-| `"1行目\n2行目"` | プレーンテキストの改行を表示 |
-| `{ "text": "<strong>文字</strong>" }` | `<strong>` を文字列として表示 |
-| `{ "html": "<strong>強調</strong>" }` | 太字をレンダリング |
-| `{ "html": "<span class='rich-red'>赤字</span>" }` | テーマに沿った赤色 |
-| `{ "html": "<span style='color:#c00'>色指定</span>" }` | 許可範囲の文字色を適用 |
-| `{ "html": "<p>段落1</p><p>段落2</p>" }` | 段落 |
+| `"通常のテキスト"` | HTMLを解釈しない、改行可 |
+| `{ "text": "<b>タグ</b>" }` | タグは文字として見せる |
+| `{ "html": "<strong>太字</strong>" }` | 強調タグの表示 |
+| `{ "html": "<span class='rich-red'>赤字</span>" }` | テーマ色 |
 | `{ "html": "<ul><li>A</li><li>B</li></ul>" }` | 箇条書き |
-| `{ "html": "<a href='https://example.com'>資料</a>" }` | リンク |
-| `{ "html": "<code>func()</code><br>次の行" }` | コード表示と改行 |
+| `{ "html": "<a href='https://example.com'>資料</a>" }` | ハイパーリンク |
 
-許可タグ：`strong`, `b`, `em`, `i`, `u`, `s`, `del`, `mark`, `br`, `p`, `ul`, `ol`, `li`, `blockquote`, `code`, `pre`, `a`, `span`, `small`, `sup`, `sub`, `div`, `kbd`, `q`。スクリプトが許可リストでサニタイズし、不正な属性・危険なプロトコル、scriptやiframeなどを除去する。埋め込み動画、フォーム、任意のJavaScriptは対象外。
+テーブル内のリッチHTMLはスクリプトで **許可タグ/属性にサニタイズ**する。使用可：`strong`, `b`, `em`, `i`, `u`, `s`, `del`, `mark`, `br`, `p`, `ul`, `ol`, `li`, `blockquote`, `code`, `pre`, `a`, `span`, `small`, `sup`, `sub`, `div`, `kbd`, `q`。悪意あるイベント属性、script、iframe等は除去する。
 
-### バッジ・参照
+ラベルスタイル：`d-light`, `d-focus`, `d-undecided`, `st-done`, `st-wip`, `st-todo`, `j-ok`, `j-defect`, `j-undef`, `j-pending`, `j-na`。列の色の意味は目的に応じて定義する。
 
-- `badge` 列：`{"text": "ラベル", "style": "st-done"}` 等。`text` には通常文字列かリッチHTMLを指定可能。
-- `chips` 列：配列 `[ {"text":"REF-1", "title":"説明", "style":"j-ok"}, ... ]`。情報がない場合は空配列、あるいは列自体を省略。
-- スタイル名：`d-light`, `d-focus`, `d-undecided`, `st-done`, `st-wip`, `st-todo`, `j-ok`, `j-defect`, `j-undef`, `j-pending`, `j-na`。
-- 色の意味を勝手に決めない。ユーザーの用語、文脈に合わせ、必要なら `legend` に説明する。
+**任意HTML表現のために、テーブル内のリッチHTML制限を外さない。** 動画や操作UIなどを表示する必要がある場合は自由HTMLブロックを使う。
 
-## 入力の扱い・品質
+## 検証と互換性
 
-- 添付ファイル・URL・リポジトリのデータは、アクセスできて内容を確認した範囲のみ利用する。
-- 事実、推測、未確認を区別する。入力を勝手に削除・圧縮しすぎない。
-- 読み手の目的に従って階層と列を再編する。列名は元のテンプレートに引きずられず、対象に合わせて決める。
-- 出力する `<script>` の固定テンプレート内部にデータを直接編集しない。JSONと `render.py` を利用する。
+- `--validate-only` で契約・参照ファイルの存在・JSON埋込可否を検証する。
+- HTML出力は `--output`。既存成果物を上書きするには `--overwrite`。
+- 元の見た目の参照：`assets/original-hierarchy-table.html`。ただし自由HTMLが標準HTMLタグを独自スタイルで使えるように、**新ページの表固有CSSは `.tree` にスコープされている**（表の表示結果は元のCSSと同じ）。
+- 旧契約の `{ "title": ..., "columns": [...], "rows": [...] }` は単一テーブルへ自動変換する。自由HTMLと複数テーブルを使う場合は新しい `blocks` 形式を使用する。
