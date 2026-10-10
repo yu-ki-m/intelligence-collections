@@ -80,6 +80,49 @@ class RenderTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             normalize_document(self.mixed, ROOT / "examples")
 
+    def test_group_cells_auto_column_layout_and_mixed_levels(self):
+        example = json.loads((ROOT / "examples/group-columns.json").read_text(encoding="utf-8"))
+        doc, tables, stats = normalize_document(example, ROOT / "examples")
+        self.assertEqual(stats["tables"], 1)
+        self.assertGreaterEqual(stats["depth"], 4)
+        group = tables[0]["rows"][0]
+        self.assertEqual(group["layout"], "columns")
+        self.assertEqual(group["cells"]["label"]["text"], "分類")
+        self.assertIn("<strong>太字</strong>", group["cells"]["b"]["html"])
+        self.assertNotIn("layout", group["children"][0])  # 従来の結合グループ
+        self.assertEqual(group["children"][1]["layout"], "columns")
+        self.assertEqual(tables[0]["rows"][1].get("layout"), None)
+        final = embed((ROOT / "assets/template.html").read_text(encoding="utf-8"), doc, tables)
+        self.assertIn("t-group-columns", final)
+
+    def test_group_cells_validation_failures(self):
+        src = json.loads((ROOT / "examples/group-columns.json").read_text(encoding="utf-8"))
+        row = src["blocks"][0]["rows"][0]
+        for change in (
+            {"layout": "merged"},
+            {"layout": "invalid"},
+            {"cells": {"badkey": "x"}},
+            {"cells": {"name": "x"}},
+            {"cells": {"label": {"text": "x", "style": "bad-style"}}},
+        ):
+            data = json.loads(json.dumps(src))
+            data["blocks"][0]["rows"][0].update(change)
+            with self.subTest(change=change), self.assertRaises(ValidationError):
+                normalize_document(data, ROOT / "examples")
+        data = json.loads(json.dumps(src))
+        data["blocks"][0]["rows"][0]["children"][0]["children"][0]["layout"] = "columns"
+        with self.assertRaises(ValidationError):
+            normalize_document(data, ROOT / "examples")
+
+    def test_explicit_merged_no_cells_and_empty_columns(self):
+        data = json.loads((ROOT / "examples/group-columns.json").read_text(encoding="utf-8"))
+        _, tables, _ = normalize_document(data, ROOT / "examples")
+        groups = tables[0]["rows"]
+        self.assertEqual(groups[1]["children"][0]["cells"].get("a"), "別の行")
+        empty = groups[0]["children"][1]
+        self.assertEqual(empty["layout"], "columns")
+        self.assertEqual(empty["cells"], {})
+
     def test_legacy_single_table(self):
         data = json.loads((ROOT / "examples/legacy-table.json").read_text(encoding="utf-8"))
         doc, tables, stats = normalize_document(data, ROOT / "examples")

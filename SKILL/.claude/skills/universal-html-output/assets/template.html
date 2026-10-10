@@ -187,6 +187,15 @@ body.is-resizing-columns { cursor: col-resize; user-select: none; }
 .table-intro { color: var(--muted); margin: 0 0 10px; }
 .sample-banner:empty, .legend:empty, .head-meta:empty { display: none; }
 /* 自由HTMLの内側には見出し・カード・図表など任意のCSS/JSを記述できる。 */
+
+/* グループ行は必要な場合だけ複数セル化する。名前列以外にも値を表示しつつ、
+   1列目の階層線・インデント・見出しの強調は従来のまま維持する。 */
+.tree tr.t-group-columns > td:not(:first-child) {
+  padding: 6px 10px;
+  font-weight: 400;
+  font-size: 13px;
+  background: linear-gradient(var(--ln), var(--ln)) 0 0 / 100% 1px no-repeat, var(--depth-fill);
+}
 </style>
 <!-- INJECT_HEAD_HTML -->
 </head>
@@ -288,10 +297,16 @@ function renderRows(nodes, depth, body, columns) {
     const hasChildren = Array.isArray(node.children) && node.children.length > 0;
     let tr;
     if (hasChildren) {
+      // グループ単位で結合表示か列別表示を選べる。無指定時は cells の有無で判定。
+      const hasGroupCells = node.cells && Object.keys(node.cells).length > 0;
+      if (node.layout === "merged" && hasGroupCells) {
+        throw Error("グループ行で layout='merged' と cells は併用できません");
+      }
+      const columnsMode = node.layout === "columns" || (node.layout !== "merged" && hasGroupCells);
       const className = depth === 0 ? "t-group" : depth === 1 ? "t-sub" : "t-deep-group";
-      tr = el("tr", className);
+      tr = el("tr", `${className}${columnsMode ? " t-group-columns" : ""}`);
       const td = el("td");
-      td.colSpan = columns.length;
+      if (!columnsMode) td.colSpan = columns.length;
       if (depth === 0) {
         td.append(el("span", "", `${number} `));
         td.append(renderRich(el("span"), node.name || "【分類名】"));
@@ -300,6 +315,15 @@ function renderRows(nodes, depth, body, columns) {
         td.append(renderRich(el("span", "t-sub-name"), node.name || "【分類名】"));
       }
       tr.append(td);
+      if (columnsMode) {
+        // 1列目は階層名専用。残りは通常行と同じセル表現を許容する。
+        for (const col of columns.slice(1)) {
+          const cell = el("td");
+          renderCell(cell, col, (node.cells || {})[col.key]);
+          tr.append(cell);
+        }
+        tr.style.setProperty("--depth-fill", depthBackground(depth).fill);
+      }
     } else {
       tr = el("tr", depth === 2 ? "t-vp" : "t-deep-leaf");
       for (const col of columns) {

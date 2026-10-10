@@ -70,6 +70,38 @@ with sync_playwright() as pw:
         grip.dblclick()
         assert first_table.evaluate('(e)=>e.style.tableLayout') == 'auto'
         page.close()
+    # Groups can render cells in any depth, while other groups keep colspan.
+    example = json.loads((ROOT / 'examples/group-columns.json').read_text(encoding='utf-8'))
+    doc, tabs, _ = normalize_document(example, ROOT / 'examples')
+    group_page = browser.new_page(viewport={'width': 1300, 'height': 900})
+    errors = []
+    group_page.on('pageerror', lambda e: errors.append(str(e)))
+    group_page.set_content(embed(TEMPLATE.read_text(encoding='utf-8'), doc, tabs))
+    rows = group_page.locator('table.tree tbody tr')
+    assert rows.count() == 8, rows.count()
+    assert rows.nth(0).locator('td').count() == 5  # group with data in columns
+    assert rows.nth(0).locator('td').nth(0).inner_text().startswith('1.')
+    assert rows.nth(0).locator('td').nth(1).inner_text().startswith('説明をグループ')
+    assert rows.nth(0).locator('td').nth(2).locator('strong').count() == 1
+    assert rows.nth(0).locator('td').nth(3).locator('.b').count() == 1
+    assert rows.nth(0).locator('td').nth(4).locator('.chip').count() == 1
+    assert rows.nth(1).locator('td').count() == 1  # traditional merged group
+    assert rows.nth(1).locator('td').first.get_attribute('colspan') == '5'
+    assert rows.nth(3).locator('td').count() == 5  # group with explicit columns and no cells
+    assert rows.nth(4).locator('td').count() == 5  # deeper group with cells
+    assert rows.nth(6).locator('td').count() == 1  # explicit merged group
+    assert not errors, errors
+    start = group_page.locator('table.tree thead th').nth(1).bounding_box()['x']
+    target = group_page.locator('table.tree thead th').nth(2)
+    grip = target.locator('.resize-handle')
+    bb = grip.bounding_box()
+    group_page.mouse.move(bb['x'] + 5, bb['y'] + bb['height'] / 2)
+    group_page.mouse.down()
+    group_page.mouse.move(bb['x'] - 70, bb['y'] + bb['height'] / 2, steps=5)
+    group_page.mouse.up()
+    assert abs(group_page.locator('table.tree thead th').nth(1).bounding_box()['x'] - start) < 1.5
+    group_page.close()
+
     # HTML-only output should render without table JS errors.
     html_only = json.loads((ROOT/'examples/html-only.json').read_text(encoding='utf-8'))
     d, t, _ = normalize_document(html_only, ROOT/'examples')

@@ -16,6 +16,7 @@ ZIPを解凍し、`universal-html-output` フォルダごと、対象プロジ�
 ├── references/data-contract.md
 ├── examples/
 │   ├── mixed-report.json              # 自由HTML + 2表 + SVG + JS
+│   ├── group-columns.json             # グループ行で結合／列別を混在
 │   ├── html-only.json                 # 表を一切使わない出力
 │   ├── html-file.json                 # html_file の例
 │   └── html-fragment.html
@@ -56,3 +57,20 @@ python3 -m unittest discover -s .claude/skills/universal-html-output/tests -v
 - 旧形式 `title` + `columns` + `rows` も1表として受け付ける（互換用）。
 
 詳しい契約と例は `references/data-contract.md` を参照してください。
+
+## グループ行にも各列を表示する
+
+`children` がある分類行は従来どおり全列結合の見出しにできます。
+`cells` を指定すると、分類名と並べて他の列にも値を表示します。
+
+```json
+{
+  "name": "分類A",
+  "cells": {"summary": "分類の説明", "status": {"text": "進行中", "style": "st-wip"}},
+  "children": [{"name": "明細1", "cells": {"summary": "個別の説明"}}]
+}
+```
+
+`cells` なしは従来の全列結合、`layout: "columns"` は空セルでも列表示、
+`layout: "merged"` は全列結合を明示します。階層ごと・グループごとに混在できます。
+`examples/group-columns.json` に列表示／結合表示の例があります。

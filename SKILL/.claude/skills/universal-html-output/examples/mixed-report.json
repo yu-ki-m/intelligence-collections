@@ -77,7 +77,17 @@
                 }
               ]
             }
-          ]
+          ],
+          "cells": {
+            "summary": "グループ共通の説明\n複数行に対応",
+            "detail": {
+              "html": "<strong>グループ行</strong>にも値を表示"
+            },
+            "tag": {
+              "text": "分類",
+              "style": "d-light"
+            }
+          }
         }
       ]
     },

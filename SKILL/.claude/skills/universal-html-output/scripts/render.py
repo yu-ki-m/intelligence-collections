@@ -262,7 +262,7 @@ def normalize_data(data: dict) -> tuple[dict, dict]:
             p = f"rows(depth={depth})[{i}]"
             if not isinstance(row, dict):
                 raise ValidationError(f"{p}: オブジェクトが必要です")
-            object_keys(row, {"name", "children", "cells"}, p)
+            object_keys(row, {"name", "children", "cells", "layout"}, p)
             if "name" not in row:
                 raise ValidationError(f"{p}.name が必要です")
             value = {"name": rich(row["name"], p + ".name")}
@@ -270,20 +270,27 @@ def normalize_data(data: dict) -> tuple[dict, dict]:
             is_group = isinstance(children, list) and len(children) > 0
             if children is not None and not isinstance(children, list):
                 raise ValidationError(f"{p}.children: 配列が必要です")
-            if is_group and row.get("cells"):
-                raise ValidationError(f"{p}: 分類行は統合セルのため cells と children を併用できません")
-            if is_group:
-                value["children"] = walk(children, depth + 1)
-                metrics["groups"] += 1
-            else:
-                cells = row.get("cells", {})
-                if not isinstance(cells, dict):
-                    raise ValidationError(f"{p}.cells: オブジェクトが必要です")
-                if "name" in cells:
-                    raise ValidationError(f"{p}.cells.name: 項目名は row.name で指定してください")
-                extra = set(cells) - set(col_map)
-                if extra:
-                    raise ValidationError(f"{p}.cells: 未定義の列キー {sorted(extra)}")
+            cells = row.get("cells", {})
+            if not isinstance(cells, dict):
+                raise ValidationError(f"{p}.cells: オブジェクトが必要です")
+            if "name" in cells:
+                raise ValidationError(f"{p}.cells.name: 項目名は row.name で指定してください")
+            extra = set(cells) - set(col_map)
+            if extra:
+                raise ValidationError(f"{p}.cells: 未定義の列キー {sorted(extra)}")
+            layout = row.get("layout")
+            if layout is not None and layout not in {"merged", "columns"}:
+                raise ValidationError(f"{p}.layout: 'merged' または 'columns' にしてください")
+            if not is_group and layout is not None:
+                raise ValidationError(f"{p}.layout: children のあるグループ行だけ指定できます")
+            if is_group and layout == "merged" and cells:
+                raise ValidationError(f"{p}: layout='merged' の場合、cells は指定できません")
+            # 明示指定が無ければセルの有無から表示形式を選ぶ。
+            # cells を持たない従来のグループは全列結合表示を維持する。
+            as_columns = is_group and (layout == "columns" or (layout is None and bool(cells)))
+            if is_group and as_columns:
+                value["layout"] = "columns"
+            if cells or not is_group or as_columns:
                 processed = {}
                 for key, content in cells.items():
                     kind = col_map[key]
@@ -294,6 +301,10 @@ def normalize_data(data: dict) -> tuple[dict, dict]:
                     else:
                         processed[key] = rich(content, f"{p}.cells.{key}")
                 value["cells"] = processed
+            if is_group:
+                value["children"] = walk(children, depth + 1)
+                metrics["groups"] += 1
+            else:
                 metrics["leaves"] += 1
             metrics["rows"] += 1
             metrics["depth"] = max(metrics["depth"], depth + 1)
