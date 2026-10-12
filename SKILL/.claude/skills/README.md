@@ -1,6 +1,6 @@
 # スキル一覧
 
-このディレクトリに収録している11種類のスキルについて、用途・主な成果物・依頼例をまとめています。詳細な実行手順、入力条件、検証方法は、各リンク先の `SKILL.md` を参照してください。
+このディレクトリに収録している12種類のスキルについて、用途・主な成果物・依頼例をまとめています。詳細な実行手順、入力条件、検証方法は、各リンク先の `SKILL.md` を参照してください。
 
 ## 一覧
 
@@ -12,6 +12,7 @@
 | 市場・成長戦略 | [category-creation-growth-marketing](category-creation-growth-marketing/SKILL.md) | 未開拓領域の探索から市場定義、製品の普及、成長、競争への備えまで検討する | 戦略分析のMarkdown、図解付きHTMLレポート |
 | SaaS事業レビュー | [saas-business-owner-accountability-review](saas-business-owner-accountability-review/.claude/skills/saas-business-owner-accountability-review/SKILL.md) | 事業計画・KPI・意思決定に残る説明不足や矛盾を経営視点で検出する | 重要論点、確認質問、必要な証拠、判断事項 |
 | AWS構成設計 | [aws-architecture-pattern-svg](aws-architecture-pattern-svg/SKILL.md) | AWSサービス間の経路や境界を明示した構成パターンを図解する | 編集可能なSVG構成図、技術解説 |
+| 画面モックアップ | [capture-screen-mockup](capture-screen-mockup/SKILL.md) | 操作中の既存Web画面を単一HTMLへ保存し、UI変更や注釈を加えた画面案を作る | 原本・画面案・注釈付きのHTML／PNG、変更記録JSON |
 | コード閲覧・読解 | [codebase-guide](codebase-guide/SKILL.md) | リポジトリをHTML化し、必要に応じて読む順番や処理フローの解説を付ける | コード閲覧HTML、定義リンク、読解・レビューガイド |
 | コード閲覧 | [repository-html-browser](repository-html-browser/SKILL.md) | リポジトリをディレクトリ構造ごと静的HTMLへ変換する | フォルダーツリーと各ファイルの閲覧HTML |
 | 変更影響分析 | [diff-decision-trees](diff-decision-trees/SKILL.md) | Git差分から変更前後の条件と最終結果を調べ、判定決定木にする | 日本語HTML、調査モデル、テストケース |
