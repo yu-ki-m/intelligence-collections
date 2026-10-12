@@ -1,11 +1,12 @@
 # スキル一覧
 
-このディレクトリに収録している12種類のスキルについて、用途・主な成果物・依頼例をまとめています。詳細な実行手順、入力条件、検証方法は、各リンク先の `SKILL.md` を参照してください。
+このディレクトリに収録している13種類のスキルについて、用途・主な成果物・依頼例をまとめています。詳細な実行手順、入力条件、検証方法は、各リンク先の `SKILL.md` を参照してください。
 
 ## 一覧
 
 | 分類 | スキル | 主な用途 | 主な成果物 |
 | --- | --- | --- | --- |
+| 着手前検討 | [pre-task-dialogue](pre-task-dialogue/SKILL.md) | タスク着手前に対話と読み取り調査で目的・影響範囲・成立条件・代替案・リスクを検討する | 根拠付き実施事項一覧、依存関係、リスク・未確定事項、着手可否 |
 | 要件・仕様分析 | [analyze-requirements-and-specs](analyze-requirements-and-specs/SKILL.md) | 既存機能の改善・拡張や新機能追加に向け、現行仕様の目的と影響を調べて要件・仕様へ整理する | 要件・仕様一覧のMarkdown／HTML、検証用JSON |
 | 業務・システム設計 | [business-model-to-system-spec](business-model-to-system-spec/SKILL.md) | 現状業務を分析し、将来の業務モデルを比較して実装可能なシステム仕様を作る | AS-IS分析、TO-BE比較、システム仕様、根拠・追跡用台帳 |
 | 業務モデル設計 | [system-driven-business-model](system-driven-business-model/SKILL.md) | 既存システムの実装能力を起点に、KPI・責任分界・業務プロセスを設計する | 能力マップ、業務モデル、KPI、運用・検証資料 |
